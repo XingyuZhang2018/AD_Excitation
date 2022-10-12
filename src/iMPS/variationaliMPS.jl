@@ -15,7 +15,7 @@ function init_mps(;infolder = "./data/",
         A = atype(load(in_chkp_file)["A"])
         verbose && println("load mps from $in_chkp_file")
     else
-        A = atype(randn(ComplexF64,χ,D,χ))
+        A = atype(randn(ComplexF64, χ,D,χ))
         verbose && println("random initial mps $in_chkp_file")
     end
     _, L_n = norm_L(A, conj(A))

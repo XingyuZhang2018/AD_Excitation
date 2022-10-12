@@ -44,9 +44,9 @@ end
 Compute the right environment tensor for normalization, by finding the right fixed point
 of `Au - Ad` contracted Aung the physical dimension.
 ```
- ─ AR──┐       ──┐       a──────┬──────b
+ ─ Au──┐       ──┐       a──────┬──────b
    │   R  = λR   R              │       
- ─ AR──┘       ──┘              c       
+ ─ Ad──┘       ──┘              c       
                                 │       
                          d──────┴──────e
 ```
