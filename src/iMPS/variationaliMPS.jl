@@ -2,6 +2,7 @@ using FileIO
 using JLD2
 using Optim, LineSearches
 using Zygote
+export init_mps, optimizeiMPS
 
 function init_mps(;infolder = "./data/", 
                     atype = Array, 
@@ -14,14 +15,14 @@ function init_mps(;infolder = "./data/",
         A = atype(load(in_chkp_file)["A"])
         verbose && println("load mps from $in_chkp_file")
     else
-        A = atype(rand(ComplexF64,χ,D,χ))
+        A = atype(randn(ComplexF64,χ,D,χ))
         verbose && println("random initial mps $in_chkp_file")
     end
     _, L_n = norm_L(A, conj(A))
     _, R_n = norm_R(A, conj(A))
     n = ein"(ad,acb),(dce,be) ->"(L_n,A,conj(A),R_n)[]/ein"ab,ab ->"(L_n,R_n)[]
     A /= sqrt(n)
-    return A, L_n, R_n
+    return A
 end
 
 """
@@ -34,16 +35,16 @@ L   ├─ H ─┤   R          │   ├─────┤   │
 │   │     │   │          │   f     g   │  
 └───A*────A*──┘          h───┴──i──┴───j 
 """
-function energy_gs(A, H, L_n, R_n)
-    _, L_n = norm_L(A, conj(A), L_n)
-    _, R_n = norm_R(A, conj(A), R_n)
+function energy_gs(A, H)
+    _, L_n = norm_L(A, conj(A))
+    _, R_n = norm_R(A, conj(A))
     env = ein"((ah,abc),cde),((hfi,igj),ej)->bfdg"(L_n,A,A,conj(A),conj(A),R_n)
     e   = ein"abcd,abcd->"(env,H)[]
     n   = ein"aabb->"(env)[]
     return e/n
 end
 
-function optimizeiMPS(A, L_n, R_n; 
+function optimizeiMPS(A; 
         model = Heisenberg(), 
         infolder = "./data/", outfolder = "./data/", 
         optimmethod = LBFGS(m = 20), 
@@ -56,13 +57,13 @@ function optimizeiMPS(A, L_n, R_n;
 
     χ, D, _ = size(A)
     H = _arraytype(A)(hamiltonian(model))
-    f(A) = real(energy_gs(A, H, L_n, R_n))
+    f(A) = real(energy_gs(A, H))
     g(A) = Zygote.gradient(f,A)[1]
     res = optimize(f, g, 
-        A, optimmethod,inplace = false,
-        Optim.Options(f_tol=f_tol, iterations=opiter,
-        extended_trace=true,
-        callback=os->writelog(os, outfolder, D, χ, savefile, verbose)),
+                   A, optimmethod,inplace = false,
+                   Optim.Options(f_tol=f_tol, iterations=opiter,
+                   extended_trace=true,
+                   callback=os->writelog(os, outfolder, D, χ, savefile, verbose)),
     )
     A = Optim.minimizer(res)
     e = Optim.minimum(res)

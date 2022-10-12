@@ -1,6 +1,6 @@
 using OMEinsum
 
-export Heisenberg
+export Heisenberg, TFIsing
 export hamiltonian, HamiltonianModel
 
 function const_Sx(S::Real)
@@ -33,10 +33,8 @@ function const_Sz(S::Real)
     dims = Int(2*S + 1)
     ms = [S-i+1 for i in 1:dims]
     Sz = zeros(ComplexF64, dims, dims)
-    for j in 1:dims, i in 1:dims
-        if i-j == 0
-            Sz[i,j] = ms[i]
-        end
+    for i in 1:dims
+        Sz[i,i] = ms[i]
     end
     return Sz
 end
@@ -53,7 +51,7 @@ function hamiltonian end
 """
     Heisenberg(Jz::T,Jx::T,Jy::T) where {T<:Real}
 
-return a struct representing the Spin-`S` heisenberg model with magnetisation fields
+return a struct representing the spin-`S` heisenberg model with magnetisation fields
 `Jz`, `Jx` and `Jy`
 """
 struct Heisenberg{T<:Real} <: HamiltonianModel
@@ -76,4 +74,27 @@ function hamiltonian(model::Heisenberg)
     Jx * ein"ij,kl -> ijkl"(Sx, Sx) -
     Jy * ein"ij,kl -> ijkl"(Sy, Sy) -
     Jz * ein"ij,kl -> ijkl"(Sz, Sz)
+end
+
+"""
+    TFIsing(hx::Real)
+return a struct representing the spin-`S` transverse field ising model with magnetisation `hx`.
+"""
+struct TFIsing{T<:Real} <: HamiltonianModel
+     S::T
+    hx::T
+end
+
+"""
+    hamiltonian(model::TFIsing)
+return the transverse field ising hamiltonian for the provided `model` as a
+two-site operator.
+"""
+function hamiltonian(model::TFIsing)
+    S, hx = model.S, model.hx
+    Sx, Sz = const_Sx(S), const_Sz(S)
+    D = size(Sx,1)
+       - ein"ij,kl -> ijkl"(Sz,Sz) -
+    hx/2 * ein"ij,kl -> ijkl"(Sx, I(D)) -
+    hx/2 * ein"ij,kl -> ijkl"(I(D), Sx)
 end
