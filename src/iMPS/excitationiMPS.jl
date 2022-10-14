@@ -1,42 +1,4 @@
 """
-    B = initial_excitation(A)
-
-    Construct a `B` tensor that is orthogonal to A:    
-    ````
-                                                        a──────┬──────b
-    ┌──B──┐                                             │      │      │
-    L  │  R  = 0                                        │      c      │
-    └──A*─┘                                             │      │      │
-                                                        d──────┴──────e                                         
-    ````
-"""
-function initial_excitation(A)
-    _, L_n = norm_L(A, conj(A))
-    _, R_n = norm_R(A, conj(A))
-    χ,D,_ = size(A)
-    Bs = []
-    for i in 1:D*χ^2-1
-        B = zero(A)
-        B[i] = 1
-        B -= ein"((ad,acb),dce),be->"(L_n,B,conj(A),R_n)[] * A / ein"((ad,acb),dce),be->"(L_n,A,conj(A),R_n)[]
-        @assert norm(ein"((ad,acb),dce),be->"(L_n,B,conj(A),R_n)[]) < 1e-8
-        push!(Bs, B)
-    end
-    return Bs
-end
-
-function initial_excitation_U(A)
-    _, L_n = norm_L(A, conj(A))
-    _, R_n = norm_R(A, conj(A))
-    x = 1.5707963267948966  + 0.5351372028447591im # χ=2
-    U = [cos(x) -sin(x); sin(x) cos(x)]
-    B = ein"abc,bd->adc"(A, U)
-    # env = ein"((ad,acb),dfe),be->cf"(L_n,A,conj(A),R_n)
-    @assert norm(ein"((ad,acb),dce),be->"(L_n,B,conj(A),R_n)[]) < 1e-8
-    return B
-end
-
-"""
     L_n, R_n = env_norm(A)
 
     get normalized environment of A
@@ -59,6 +21,41 @@ function env_norm(A)
     n = ein"((ad,acb),dce),be->"(L_n,A,conj(A),R_n)[]
     L_n /= n
     return L_n, R_n
+end
+
+"""
+    B = initial_excitation(A)
+
+    Construct a `B` tensor that is orthogonal to A:    
+    ````
+                                                        a──────┬──────b
+    ┌──B──┐                                             │      │      │
+    L  │  R  = 0                                        │      c      │
+    └──A*─┘                                             │      │      │
+                                                        d──────┴──────e                                         
+    ````
+"""
+function initial_excitation(A, L_n, R_n)
+    χ,D,_ = size(A)
+    Bs = []
+    for i in 1:D*χ^2-1
+        B = zero(A)
+        B[i] = 1
+        B -= ein"((ad,acb),dce),be->"(L_n,B,conj(A),R_n)[] * A
+        push!(Bs, B)
+    end
+    return Bs
+end
+
+function initial_excitation_U(A)
+    _, L_n = norm_L(A, conj(A))
+    _, R_n = norm_R(A, conj(A))
+    x = 1.5707963267948966  + 0.5351372028447591im # χ=2
+    U = [cos(x) -sin(x); sin(x) cos(x)]
+    B = ein"abc,bd->adc"(A, U)
+    # env = ein"((ad,acb),dfe),be->cf"(L_n,A,conj(A),R_n)
+    @assert norm(ein"((ad,acb),dce),be->"(L_n,B,conj(A),R_n)[]) < 1e-8
+    return B
 end
 
 """
@@ -102,12 +99,12 @@ function sum_series_k(k, A, R_n, L_n)
     rl = ein"ab,cd->abcd"(R_n, L_n)
 
     a2 = 工_I - exp(1.0im * k) * (工 - rl)
-    b2 = 工_I
+    b2 = 工_I - rl
     s2, info2 = linsolve(x->ein"adbe,becf->adcf"(a2,x), b2)
     @assert info2.converged == 1
 
     a3 = 工_I - exp(1.0im *-k) * (工 - rl)
-    b3 = 工_I
+    b3 = 工_I - rl
     s3, info3 = linsolve(x->ein"adbe,becf->adcf"(a3,x), b3)
     @assert info3.converged == 1
     return s2, s3
@@ -190,11 +187,11 @@ function N_eff(k, A, Bu, Bd, L_n, R_n, s2, s3)
     N_mn = 0
 
     # 1. B, B* on the same site
-    N_mn += ein"((ad,acb),dce),be->"(L_n, Bu, conj(Bd), R_n)[]
+    N_mn += ein"((ad,acb),dce),be->"(L_n, Bu, conj(Bd), R_n)[] * 4
 
     # 2. B, B* on the different sites
-    N_mn += ein"((ad,acb),dce),be->"(einL_A_s(L_n, Bu, A, s2), A, conj(Bd), R_n)[] * exp(1.0im * k)
-    N_mn += ein"((ad,acb),dce),be->"(einL_A_s(L_n, A, Bd, s3), Bu, conj(A), R_n)[] * exp(1.0im *-k)
+    N_mn += ein"((ad,acb),dce),be->"(einL_A_s(L_n, Bu, A, s2), A, conj(Bd), R_n)[] * exp(1.0im * k) * 8
+    N_mn += ein"((ad,acb),dce),be->"(einL_A_s(L_n, A, Bd, s3), Bu, conj(A), R_n)[] * exp(1.0im *-k) * 8
 
     return N_mn
 end
@@ -258,26 +255,30 @@ function H_eff(k, A, Bu, Bd, H, L_n, R_n, s1, s2, s3)
     H_mn += ein"ab,ab->"(einL_A_s(L_n, Bu, Bd, s1), H_R_AA)[]
     
     # 3. one of B and B* on the same site of H
-    H_mn += ein"ab,ab->"(einH_L(Bu, A, A, A, L_n, H), eins_A_R(s2, A, Bd, R_n))[] * exp(2.0im * k)
-    H_mn += ein"ab,ab->"(einH_L(A, Bu, A, A, L_n, H), eins_A_R(s2, A, Bd, R_n))[] * exp(1.0im * k)
-    H_mn += ein"ab,ab->"(einH_L(A, A, Bd, A, L_n, H), eins_A_R(s3, Bu, A, R_n))[] * exp(2.0im *-k)
-    H_mn += ein"ab,ab->"(einH_L(A, A, A, Bd, L_n, H), eins_A_R(s3, Bu, A, R_n))[] * exp(1.0im *-k)
+    s2_A_Bd_R = eins_A_R(s2, A, Bd, R_n)
+    s3_Bu_A_R = eins_A_R(s3, Bu, A, R_n)
+    H_mn += ein"ab,ab->"(einH_L(Bu, A, A, A, L_n, H), s2_A_Bd_R)[] * exp(2.0im * k)
+    H_mn += ein"ab,ab->"(einH_L(A, Bu, A, A, L_n, H), s2_A_Bd_R)[] * exp(1.0im * k)
+    H_mn += ein"ab,ab->"(einH_L(A, A, Bd, A, L_n, H), s3_Bu_A_R)[] * exp(2.0im *-k)
+    H_mn += ein"ab,ab->"(einH_L(A, A, A, Bd, L_n, H), s3_Bu_A_R)[] * exp(1.0im *-k)
 
-    H_mn += ein"ab,ab->"(einL_A_s(L_n, Bu, A, s2), einH_R(A, A, Bd, A, R_n, H))[] * exp(1.0im * k)
-    H_mn += ein"ab,ab->"(einL_A_s(L_n, Bu, A, s2), einH_R(A, A, A, Bd, R_n, H))[] * exp(2.0im * k)
-    H_mn += ein"ab,ab->"(einL_A_s(L_n, A, Bd, s3), einH_R(Bu, A, A, A, R_n, H))[] * exp(1.0im *-k)
-    H_mn += ein"ab,ab->"(einL_A_s(L_n, A, Bd, s3), einH_R(A, Bu, A, A, R_n, H))[] * exp(2.0im *-k)
+    L_Bu_A_s2 = einL_A_s(L_n, Bu, A, s2)
+    L_A_Bd_s3 = einL_A_s(L_n, A, Bd, s3)
+    H_mn += ein"ab,ab->"(L_Bu_A_s2, einH_R(A, A, Bd, A, R_n, H))[] * exp(1.0im * k)
+    H_mn += ein"ab,ab->"(L_Bu_A_s2, einH_R(A, A, A, Bd, R_n, H))[] * exp(2.0im * k)
+    H_mn += ein"ab,ab->"(L_A_Bd_s3, einH_R(Bu, A, A, A, R_n, H))[] * exp(1.0im *-k)
+    H_mn += ein"ab,ab->"(L_A_Bd_s3, einH_R(A, Bu, A, A, R_n, H))[] * exp(2.0im *-k)
 
     # 4. B and B* are on the different sites and away from the site of H on the same side
-    H_mn += ein"ab,ab->"(H_L_AA, eins_A_R(s1, Bu, A, eins_A_R(s2, A, Bd, R_n)))[] * exp(1.0im * k)
-    H_mn += ein"ab,ab->"(H_L_AA, eins_A_R(s1, A, Bd, eins_A_R(s3, Bu, A, R_n)))[] * exp(1.0im *-k)
+    H_mn += ein"ab,ab->"(H_L_AA, eins_A_R(s1, Bu, A, s2_A_Bd_R))[] * exp(1.0im * k)
+    H_mn += ein"ab,ab->"(H_L_AA, eins_A_R(s1, A, Bd, s3_Bu_A_R))[] * exp(1.0im *-k)
 
-    H_mn += ein"ab,ab->"(einL_A_s(einL_A_s(L_n, Bu, A, s2), A, Bd, s1), H_R_AA)[] * exp(1.0im * k)
-    H_mn += ein"ab,ab->"(einL_A_s(einL_A_s(L_n, A, Bd, s3), Bu, A, s1), H_R_AA)[] * exp(1.0im *-k)
+    H_mn += ein"ab,ab->"(einL_A_s(L_Bu_A_s2, A, Bd, s1), H_R_AA)[] * exp(1.0im * k)
+    H_mn += ein"ab,ab->"(einL_A_s(L_A_Bd_s3, Bu, A, s1), H_R_AA)[] * exp(1.0im *-k)
 
     # 5. B and B* are on the different sites and away from the site of H on the different sides
-    H_mn += ein"ab,ab->"(einH_L(A, A, A, A, einL_A_s(L_n, Bu, A, s2), H), eins_A_R(s2, A, Bd, R_n))[] * exp(3.0im * k)
-    H_mn += ein"ab,ab->"(einH_L(A, A, A, A, einL_A_s(L_n, A, Bd, s3), H), eins_A_R(s3, Bu, A, R_n))[] * exp(3.0im *-k)
+    H_mn += ein"ab,ab->"(einH_L(A, A, A, A, L_Bu_A_s2, H), s2_A_Bd_R)[] * exp(3.0im * k)
+    H_mn += ein"ab,ab->"(einH_L(A, A, A, A, L_A_Bd_s3, H), s3_Bu_A_R)[] * exp(3.0im *-k)
 
     return H_mn
 end
@@ -286,7 +287,7 @@ function excitation_spectrum(k, A, H)
     χ, D, _ = size(A)
     M = χ^2*D-1
     L_n, R_n = env_norm(A)
-    Bs = initial_excitation(A)
+    Bs = initial_excitation(A, L_n, R_n)
 
     s1       = sum_series(     A, L_n, R_n)
     s2, s3   = sum_series_k(k, A, R_n, L_n)
@@ -294,12 +295,12 @@ function excitation_spectrum(k, A, H)
     H_mn = zeros(ComplexF64, M, M)
     N_mn = zeros(ComplexF64, M, M)
 
+    @show M
     for i in 1:M, j in 1:M
         H_mn[i,j] = H_eff(k, A, Bs[i], Bs[j], H, L_n, R_n, s1, s2, s3)
         N_mn[i,j] = N_eff(k, A, Bs[i], Bs[j],    L_n, R_n,     s2, s3)
     end
 
-    @show size(H_mn) size(N_mn)
-    F = eigen(H_mn, N_mn)
-    return F
+    F = eigen(conj(H_mn), conj(N_mn))
+    return F, H_mn, N_mn
 end
