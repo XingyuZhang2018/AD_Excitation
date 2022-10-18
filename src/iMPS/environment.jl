@@ -56,3 +56,20 @@ function norm_R(Au, Ad, R = _arraytype(Au)(randn(eltype(Au), size(Au,3), size(Ad
     Ad = permutedims(Ad,(3,2,1))
     return norm_L(Au, Ad, R; kwargs...)
 end
+
+function overlap(Au, Ad)
+    _, FLu_n = norm_L(Au, conj(Au))
+    _, FRu_n = norm_R(Au, conj(Au))
+    _, FLd_n = norm_L(Ad, conj(Ad))
+    _, FRd_n = norm_R(Ad, conj(Ad))
+
+    nu = ein"(ad,acb),(dce,be) ->"(FLu_n,Au,conj(Au),FRu_n)[]/ein"ab,ab ->"(FLu_n,FRu_n)[]
+    Au /= sqrt(nu)
+    nd = ein"(ad,acb),(dce,be) ->"(FLd_n,Ad,conj(Ad),FRd_n)[]/ein"ab,ab ->"(FLd_n,FRd_n)[]
+    Ad /= sqrt(nd)
+
+    _, FLud_n = norm_L(Au, conj(Ad))
+    _, FRud_n = norm_R(Au, conj(Ad))
+    @show ein"(ad,acb),(dce,be) ->"(FLud_n,Au,conj(Ad),FRud_n)[]/ein"ab,ab ->"(FLud_n,FRud_n)[]
+    abs2(ein"(ad,acb),(dce,be) ->"(FLud_n,Au,conj(Ad),FRud_n)[]/ein"ab,ab ->"(FLud_n,FRud_n)[])
+end
