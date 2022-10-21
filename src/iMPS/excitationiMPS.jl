@@ -47,16 +47,18 @@ function initial_excitation(A, L_n, R_n)
     χ,D,_ = size(A)
     Bs = []
 
-    VL = rand(χ, D, χ*(D-1))
+    VL = randn(χ, D, χ*(D-1))
     sq_L_n = sqrt(L_n)
     sq_R_n = sqrt(R_n)
     inv_sq_L_n = sq_L_n^-1
     inv_sq_R_n = sq_R_n^-1
     λL = ein"(ad,acb),dce -> eb"(sq_L_n,VL,conj(A))
     VL -= ein"(ba,bcd),ed,ef ->acf"(sq_L_n,A,L_n^-1,λL)
+    Q, _ = qrpos(reshape(VL, χ*D, χ*(D-1)))
+    VL = reshape(Q, χ, D, χ*(D-1))
     for i in 1:(D-1)*χ^2
-        X = zeros(ComplexF64, χ*(D-1), χ)
-        X[i] = 1.0
+        X = ones(ComplexF64, χ*(D-1), χ)
+        X[i] = 0.0
         B = ein"((ba,bcd),de),ef->acf"(inv_sq_L_n,VL,X,inv_sq_R_n)
         push!(Bs, B)
     end
@@ -177,11 +179,11 @@ function N_eff(k, A, Bu, Bd, L_n, R_n, s2, s3)
     N_mn = 0
 
     # 1. B, B* on the same site
-    N_mn += 4 * ein"((ad,acb),dce),be->"(L_n, Bu, conj(Bd), R_n)[]
+    N_mn += ein"((ad,acb),dce),be->"(L_n, Bu, conj(Bd), R_n)[]
 
     # 2. B, B* on the different sites
-    # N_mn += 4 * ein"((ad,acb),dce),be->"(einL_A_s(L_n, Bu, A, s2), A, conj(Bd), R_n)[] * exp(1.0im * k) 
-    # N_mn += 4 * ein"((ad,acb),dce),be->"(einL_A_s(L_n, A, Bd, s3), Bu, conj(A), R_n)[] * exp(1.0im *-k)
+    # N_mn += ein"((ad,acb),dce),be->"(einL_A_s(L_n, Bu, A, s2), A, conj(Bd), R_n)[] * exp(1.0im * k) 
+    # N_mn += ein"((ad,acb),dce),be->"(einL_A_s(L_n, A, Bd, s3), Bu, conj(A), R_n)[] * exp(1.0im *-k)
 
     return N_mn
 end
@@ -270,18 +272,21 @@ function H_eff(k, A, Bu, Bd, H, L_n, R_n, s1, s2, s3)
     H_mn = 0
 
     # 1. B, B* and H on the same site
+    H_L_AA = einH_L(A, A, A, A, L_n, H)
     H_L = einH_L(Bu,A,Bd,A,L_n,H)                  + 
           einH_L(Bu,A,A,Bd,L_n,H) * exp(1.0im * k) + 
           einH_L(A,Bu,Bd,A,L_n,H) * exp(1.0im *-k) + 
           einH_L(A,Bu,A,Bd,L_n,H)
     H_mn += ein"ab,ab->"(H_L, R_n)[]
 
+    # critical subtraction for the energy gap
+    H_mn -= 4 * ein"ab,ab->"(H_L_AA, R_n)[] * ein"((ad,acb),dce),be->"(L_n, Bu, conj(Bd), R_n)[]
+
     # 2. B and B* are on the same site but away from the site of H
-    H_L_AA = einH_L(A, A, A, A, L_n, H)
     H_R_AA = einH_R(A, A, A, A, R_n, H)
     H_mn += ein"ab,ab->"(H_L_AA, eins_A_R(s1, Bu, Bd, R_n))[]
     H_mn += ein"ab,ab->"(einL_A_s(L_n, Bu, Bd, s1), H_R_AA)[]
-    
+
     # 3. one of B and B* on the same site of H
     s2_A_Bd_R = eins_A_R(s2, A, Bd, R_n)
     s3_Bu_A_R = eins_A_R(s3, Bu, A, R_n)
@@ -326,11 +331,26 @@ function excitation_spectrum(k, A, H)
 
     N = ein"ab,cd->abcd"(I(D), I(D))
     @show M
-    for i in 1:M, j in 1:M
-        H_mn[i,j] = H_eff(k, A, Bs[i], Bs[j], H, L_n, R_n, s1, s2, s3)
-        N_mn[i,j] = N_eff(k, A, Bs[i], Bs[j],    L_n, R_n,     s2, s3)
+    for _ in 1:M
+        print("=")
     end
-
+    print("\n")
+    p = 0
+    for i in 1:M
+        if i/M > p
+            p+=1/M
+            print("=")
+        end
+        for j in 1:i
+            H_mn[j,i] = H_eff(k, A, Bs[i], Bs[j], H, L_n, R_n, s1, s2, s3)
+            N_mn[j,i] = N_eff(k, A, Bs[i], Bs[j],    L_n, R_n,     s2, s3)
+            if i != j
+                H_mn[i,j] = conj(H_mn[j,i])
+                N_mn[i,j] = conj(N_mn[j,i])
+            end
+        end
+    end
+    print("\n")
     F = eigen(H_mn, N_mn)
-    return F, H_mn, N_mn
+    return F, H_mn, N_mn, Bs
 end

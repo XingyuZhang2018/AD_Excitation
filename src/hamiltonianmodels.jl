@@ -1,6 +1,6 @@
 using OMEinsum
 
-export Heisenberg, TFIsing
+export Heisenberg, TFIsing, XXZ
 export hamiltonian, HamiltonianModel
 
 function const_Sx(S::Real)
@@ -97,4 +97,22 @@ function hamiltonian(model::TFIsing)
        - ein"ij,kl -> ijkl"(Sz,Sz) -
     hx/2 * ein"ij,kl -> ijkl"(Sx, I(D)) -
     hx/2 * ein"ij,kl -> ijkl"(I(D), Sx)
+end
+
+struct XXZ{T<:Real} <: HamiltonianModel
+    Δ::T
+end
+
+"""
+    hamiltonian(model::TFIsing)
+return the transverse field ising hamiltonian for the provided `model` as a
+two-site operator.
+"""
+function hamiltonian(model::XXZ)
+    Δ = model.Δ
+    # σx, σy, σz = 2*const_Sx(0.5), 2*const_Sy(0.5), 2*const_Sz(0.5)
+    Sx, Sy, Sz = const_Sx(0.5), const_Sy(0.5), const_Sz(0.5)
+        ein"ij,kl -> ijkl"(Sx, Sx) -
+        ein"ij,kl -> ijkl"(Sy, Sy) -
+    Δ * ein"ij,kl -> ijkl"(Sz, Sz)
 end

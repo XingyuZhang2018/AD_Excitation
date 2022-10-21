@@ -73,3 +73,20 @@ function overlap(Au, Ad)
     @show ein"(ad,acb),(dce,be) ->"(FLud_n,Au,conj(Ad),FRud_n)[]/ein"ab,ab ->"(FLud_n,FRud_n)[]
     abs2(ein"(ad,acb),(dce,be) ->"(FLud_n,Au,conj(Ad),FRud_n)[]/ein"ab,ab ->"(FLud_n,FRud_n)[])
 end
+
+safesign(x::Number) = iszero(x) ? one(x) : sign(x)
+"""
+    qrpos(A)
+Returns a QR decomposition, i.e. an isometric `Q` and upper triangular `R` matrix, where `R`
+is guaranteed to have positive diagonal elements.
+"""
+qrpos(A) = qrpos!(copy(A))
+function qrpos!(A)
+    F = qr!(A)
+    Q = Matrix(F.Q)
+    R = F.R
+    phases = safesign.(diag(R))
+    rmul!(Q, Diagonal(phases))
+    lmul!(Diagonal(conj!(phases)), R)
+    return Q, R
+end

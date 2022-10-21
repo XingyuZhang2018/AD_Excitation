@@ -25,15 +25,13 @@ end
     model = Heisenberg()
     A = init_mps(D = D, χ = χ,
                 infolder = "./data/$model/")
-    Bm = zeros(ComplexF64, D*χ^2, D*χ^2)
+    Bm = zeros(ComplexF64, (D-1)*χ^2, D*χ^2)
     L_n, R_n = env_norm(A)
     Bs = initial_excitation(A, L_n, R_n)
     for i in 1:(D-1)*χ^2
         Bm[i,:] = Bs[i][:]
-        @test norm(ein"((ad,acb),dce),be->"(L_n,Bs[i],conj(A),R_n)[]) < 1e-12
-        @test norm(ein"(ad,acb),dce->"(     L_n,Bs[i],conj(A)    )[]) < 1e-12
-        @test norm(ein"((ad,acb),dce),be->"(L_n,A,conj(Bs[i]),R_n)[]) < 1e-12
-        @test norm(ein"(ad,acb),dce->"(     L_n,A,conj(Bs[i])    )[]) < 1e-12
+        @test norm(ein"(ad,acb),dce->be"(L_n,Bs[i],conj(A))) < 1e-12
+        @test norm(ein"(ad,acb),dce->be"(L_n,A,conj(Bs[i]))) < 1e-12
     end
     @test rank(Bm) == (D-1)*χ^2
 end
@@ -62,8 +60,8 @@ end
 
 @testset "H_eff N_eff" begin
     Random.seed!(100)
-    D,χ = 3,2
-    model = Heisenberg(1.0)
+    D,χ = 2,2
+    model = Heisenberg(0.5)
     H = hamiltonian(model)
     N = ein"ab,cd->abcd"(I(D), I(D))
     A = init_mps(D = D, χ = χ,
@@ -72,29 +70,19 @@ end
     L_n, R_n = env_norm(A)
     Bs = initial_excitation(A, L_n, R_n)
 
-    k = 0.0
+    k = rand()
     s1       = sum_series(     A, L_n, R_n)
     s2, s3   = sum_series_k(k, A, L_n, R_n)
-    E_gs_1 = H_eff(k, A, A, A, H, L_n, R_n, s1, s2, s3)/
-             N_eff(k, A, A, A,    L_n, R_n,     s2, s3)
-    E_gs_2 = H_eff(k, A, A, A, H, L_n, R_n, s1, s2, s3)/
-             H_eff(k, A, A, A, N, L_n, R_n, s1, s2, s3)
-    @test E_gs_2 ≈ E_gs_1
-
-    k = 1.0
      H_mn = zeros(ComplexF64, M, M)
-    N1_mn = zeros(ComplexF64, M, M)
-    N2_mn = zeros(ComplexF64, M, M)
+     N_mn = zeros(ComplexF64, M, M)
     for i in 1:M, j in 1:M
          H_mn[i,j] = H_eff(k, A, Bs[i], Bs[j], H, L_n, R_n, s1, s2, s3)
-        N1_mn[i,j] = N_eff(k, A, Bs[i], Bs[j],    L_n, R_n,     s2, s3)
-        N2_mn[i,j] = H_eff(k, A, Bs[i], Bs[j], N, L_n, R_n, s1, s2, s3)
+         N_mn[i,j] = N_eff(k, A, Bs[i], Bs[j],    L_n, R_n,     s2, s3)
     end
     @test H_mn ≈ H_mn'
-    @test N1_mn ≈ N1_mn' 
-    @test N2_mn ≈ N2_mn'
+    @test N_mn ≈ N_mn' 
     @test rank(H_mn) == M
-    @test rank(N1_mn) == M
+    @test rank(N_mn) == M
 end
 
 @testset "excitation energy" begin
@@ -102,24 +90,20 @@ end
     D,χ = 3,2
     model = Heisenberg(1.0)
     H = hamiltonian(model)
-    N = ein"ab,cd->abcd"(I(D), I(D))
     A = init_mps(D = D, χ = χ,
                 infolder = "./data/$model/")
     k = pi
-    F, H_mn, N_mn = excitation_spectrum(k, A, H)
-    @show F.values 
-    # @test H_mn * F.vectors[:, 1] ≈  F.values[1] * N_mn * F.vectors[:, 1]
-
+    F, H_mn, N_mn, Bs = excitation_spectrum(k, A, H)
+    for i in 1:length(F.values)
+        @test H_mn * F.vectors[:,i] ≈ F.values[i] .* N_mn * F.vectors[:,i]
+    end
     L_n, R_n = env_norm(A)
     s1       = sum_series(     A, L_n, R_n)
     s2, s3   = sum_series_k(k, A, L_n, R_n)
-    Bs = initial_excitation(A, L_n, R_n)
-    @show length(Bs)
-    min_v = sum([F.vectors[:,1][i] * Bs[i] for i in 1:length(Bs)])
-    # min_v_d = sum([F.vectors[:,1][i] * Bs[i] for i in 1:length(Bs)])
+
+    min_v = sum([F.vectors[:, 1][i] * Bs[i] for i in 1:length(Bs)])
     E_ex = H_eff(k, A, min_v, min_v, H, L_n, R_n, s1, s2, s3)/
-        #    N_eff(k, A, min_v, min_v,    L_n, R_n,     s2, s3)
-           H_eff(k, A, min_v, min_v, N, L_n, R_n, s1, s2, s3)
+           N_eff(k, A, min_v, min_v,    L_n, R_n,     s2, s3)
+    @test E_ex ≈ F.values[1]
     @show E_ex
-    # @test E_ex ≈ F.values[1]
 end
