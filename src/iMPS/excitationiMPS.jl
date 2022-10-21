@@ -57,8 +57,9 @@ function initial_excitation(A, L_n, R_n)
     Q, _ = qrpos(reshape(VL, χ*D, χ*(D-1)))
     VL = reshape(Q, χ, D, χ*(D-1))
     for i in 1:(D-1)*χ^2
-        X = ones(ComplexF64, χ*(D-1), χ)
-        X[i] = 0.0
+        X = zeros(ComplexF64, χ*(D-1), χ)
+        X[i] = 1.0
+        X /= sqrt(ein"ab,ab->"(X,conj(X))[])
         B = ein"((ba,bcd),de),ef->acf"(inv_sq_L_n,VL,X,inv_sq_R_n)
         push!(Bs, B)
     end
@@ -327,9 +328,7 @@ function excitation_spectrum(k, A, H)
     s2, s3   = sum_series_k(k, A, L_n, R_n)
 
     H_mn = zeros(ComplexF64, M, M)
-    N_mn = zeros(ComplexF64, M, M)
 
-    N = ein"ab,cd->abcd"(I(D), I(D))
     @show M
     for _ in 1:M
         print("=")
@@ -343,14 +342,12 @@ function excitation_spectrum(k, A, H)
         end
         for j in 1:i
             H_mn[j,i] = H_eff(k, A, Bs[i], Bs[j], H, L_n, R_n, s1, s2, s3)
-            N_mn[j,i] = N_eff(k, A, Bs[i], Bs[j],    L_n, R_n,     s2, s3)
             if i != j
                 H_mn[i,j] = conj(H_mn[j,i])
-                N_mn[i,j] = conj(N_mn[j,i])
             end
         end
     end
     print("\n")
-    F = eigen(H_mn, N_mn)
-    return F, H_mn, N_mn, Bs
+    F = eigen(H_mn)
+    return F, H_mn, Bs
 end

@@ -93,17 +93,14 @@ end
     A = init_mps(D = D, χ = χ,
                 infolder = "./data/$model/")
     k = pi
-    F, H_mn, N_mn, Bs = excitation_spectrum(k, A, H)
-    for i in 1:length(F.values)
-        @test H_mn * F.vectors[:,i] ≈ F.values[i] .* N_mn * F.vectors[:,i]
-    end
+    F, H_mn, Bs = excitation_spectrum(k, A, H)
     L_n, R_n = env_norm(A)
     s1       = sum_series(     A, L_n, R_n)
     s2, s3   = sum_series_k(k, A, L_n, R_n)
 
     min_v = sum([F.vectors[:, 1][i] * Bs[i] for i in 1:length(Bs)])
-    E_ex = H_eff(k, A, min_v, min_v, H, L_n, R_n, s1, s2, s3)/
-           N_eff(k, A, min_v, min_v,    L_n, R_n,     s2, s3)
+    E_ex = H_eff(k, A, min_v, min_v, H, L_n, R_n, s1, s2, s3)
+    @show N_eff(k, A, min_v, min_v,    L_n, R_n,     s2, s3) F.vectors[:, 1]' * F.vectors[:, 1]
     @test E_ex ≈ F.values[1]
     @show E_ex
 end

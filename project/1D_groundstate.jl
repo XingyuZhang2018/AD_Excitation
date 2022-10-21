@@ -62,7 +62,7 @@ end
 @testset "1D XXZ S=1/2 ground energy with $atype" for atype in [Array]
     Random.seed!(100)
     D,χ = 2,16
-    for Δ in 2.0:0.2:2.0
+    for Δ in 4.0:0.2:4.0
         model = XXZ(Δ)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
@@ -70,7 +70,7 @@ end
         A, e = optimizeiMPS(A; 
                             model = model,
                             f_tol = 1e-15,
-                            opiter = 100)
+                            opiter = 1000)
         @show e 
     end
 end
