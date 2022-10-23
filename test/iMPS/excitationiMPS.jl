@@ -1,5 +1,5 @@
 using AD_Excitation
-using AD_Excitation: initial_excitation, initial_excitation_U, env_norm, sum_series, sum_series_k, H_eff, N_eff, excitation_spectrum, energy_gs, norm_L, norm_R, overlap
+using AD_Excitation: initial_excitation, initial_excitation_U, env_norm, sum_series, sum_series_k, H_eff, N_eff, excitation_spectrum, energy_gs, norm_L, norm_R, overlap, initial_VL
 using LinearAlgebra
 using OMEinsum
 using Random
@@ -19,7 +19,7 @@ using Test
     @test ein"((ad,acb),dce),be->"(L_n,A,conj(A),R_n)[] ≈ 1
 end
 
-@testset "initial B" begin
+@testset "initial B initial_VL" begin
     Random.seed!(100)
     D,χ = 2,2
     model = Heisenberg()
@@ -34,6 +34,9 @@ end
         @test norm(ein"(ad,acb),dce->be"(L_n,A,conj(Bs[i]))) < 1e-12
     end
     @test rank(Bm) == (D-1)*χ^2
+
+    VL = initial_VL(A, L_n)
+    @test ein"abc,abd->cd"(VL, conj(VL))      ≈ I((D-1)*χ)
 end
 
 @testset "sum_series" begin
@@ -51,56 +54,53 @@ end
     工_I = ein"ab,cd->acbd"(I(χ), I(χ))
     工 = ein"acb,dce->adbe"(A, conj(A))
     rl = ein"ab,cd->abcd"(R_n, L_n) 
-    @test size(s1) == (χ,χ,χ,χ)
-    @test ein"adbe,becf->adcf"(工_I - (工 - rl),s1) ≈ 工_I
-    @test ein"(((ad,acb),dce),befg),fg->"(L_n,A,conj(A),s1,R_n)[] ≈ 1
-    @test size(s2) == (χ,χ,χ,χ)
-    @test size(s3) == (χ,χ,χ,χ)
+    @test ein"adbe,becf->adcf"(工_I -                  (工 - rl), s1) ≈ 工_I
+    @test ein"adbe,becf->adcf"(工_I - exp(1.0im * k) * (工 - rl), s2) ≈ 工_I
+    @test ein"adbe,becf->adcf"(工_I - exp(1.0im *-k) * (工 - rl), s3) ≈ 工_I
 end
 
-@testset "H_eff N_eff" begin
-    Random.seed!(100)
-    D,χ = 2,2
-    model = Heisenberg(0.5)
-    H = hamiltonian(model)
-    N = ein"ab,cd->abcd"(I(D), I(D))
-    A = init_mps(D = D, χ = χ,
-                infolder = "./data/$model/")
-    M = χ^2*(D-1)
-    L_n, R_n = env_norm(A)
-    Bs = initial_excitation(A, L_n, R_n)
-
-    k = rand()
-    s1       = sum_series(     A, L_n, R_n)
-    s2, s3   = sum_series_k(k, A, L_n, R_n)
-     H_mn = zeros(ComplexF64, M, M)
-     N_mn = zeros(ComplexF64, M, M)
-    for i in 1:M, j in 1:M
-         H_mn[i,j] = H_eff(k, A, Bs[i], Bs[j], H, L_n, R_n, s1, s2, s3)
-         N_mn[i,j] = N_eff(k, A, Bs[i], Bs[j],    L_n, R_n,     s2, s3)
-    end
-    @test H_mn ≈ H_mn'
-    @test N_mn ≈ N_mn' 
-    @test rank(H_mn) == M
-    @test rank(N_mn) == M
-end
-
-@testset "excitation energy" begin
+@testset "H_eff" begin
     Random.seed!(100)
     D,χ = 3,2
     model = Heisenberg(1.0)
     H = hamiltonian(model)
     A = init_mps(D = D, χ = χ,
                 infolder = "./data/$model/")
-    k = pi
-    F, H_mn, Bs = excitation_spectrum(k, A, H)
+    H-= energy_gs(A, H) * ein"ab,cd->abcd"(I(D),I(D))
+    M = χ^2*(D-1)
     L_n, R_n = env_norm(A)
-    s1       = sum_series(     A, L_n, R_n)
-    s2, s3   = sum_series_k(k, A, L_n, R_n)
+    Vs = []
+    for i in 1:M
+        V = zeros(ComplexF64, χ*(D-1), χ)
+        V[i] = 1.0
+        push!(Vs, V)
+    end
 
-    min_v = sum([F.vectors[:, 1][i] * Bs[i] for i in 1:length(Bs)])
-    E_ex = H_eff(k, A, min_v, min_v, H, L_n, R_n, s1, s2, s3)
-    @show N_eff(k, A, min_v, min_v,    L_n, R_n,     s2, s3) F.vectors[:, 1]' * F.vectors[:, 1]
-    @test E_ex ≈ F.values[1]
-    @show E_ex
+    k = rand()
+    s1     = sum_series(     A, L_n, R_n)
+    s2, s3 = sum_series_k(k, A, L_n, R_n)
+    H_mn   = zeros(ComplexF64, M, M)
+    VL     = initial_VL(A, L_n)
+    for i in 1:M, j in 1:M
+        H_mn[i,j] = ein"ab,ab->"(H_eff(k, A, Vs[i], VL, H, L_n, R_n, s1, s2, s3), conj(Vs[j]))[]
+    end
+    @test H_mn ≈ H_mn'
+    @test rank(H_mn) == M
+
+    λ1, = eigen(H_mn)
+    λ2, Y, info = eigsolve(x -> H_eff(k, A, x, VL, H, L_n, R_n, s1, s2, s3), Vs[1], 1, :SR; ishermitian = false, maxiter = 100)
+    @test λ1 ≈ λ2
+end
+
+@testset "excitation energy" begin
+    Random.seed!(100)
+    D,χ = 3,8
+    model = Heisenberg(1.0)
+    H = hamiltonian(model)
+    A = init_mps(D = D, χ = χ,
+                infolder = "./data/$model/")
+    
+    k = pi
+    Δ, v, info = excitation_spectrum(k, A, H)
+    @show Δ
 end

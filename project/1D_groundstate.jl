@@ -46,7 +46,7 @@ end
     Random.seed!(100)
     D = 3
     model = Heisenberg(1.0)
-    for χ in 2 .^ (1:1)
+    for χ in 2 .^ (6:6)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
@@ -54,7 +54,7 @@ end
         A, e = optimizeiMPS(A; 
                             model = model,
                             f_tol = 1e-15,
-                            opiter = 1)
+                            opiter = 1000)
         @show e 
     end
 end
