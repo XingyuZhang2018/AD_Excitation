@@ -12,7 +12,7 @@ using Zygote
     Random.seed!(100)
     D = 2
     model = Heisenberg(1/2)
-    for χ in 2 .^ (1:1)
+    for χ in 2 .^ (5:5)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
@@ -46,7 +46,7 @@ end
     Random.seed!(100)
     D = 3
     model = Heisenberg(1.0)
-    for χ in 2 .^ (6:6)
+    for χ in 2 .^ (5:5)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
@@ -62,7 +62,7 @@ end
 @testset "1D XXZ S=1/2 ground energy with $atype" for atype in [Array]
     Random.seed!(100)
     D,χ = 2,16
-    for Δ in 4.0:0.2:4.0
+    for Δ in 1.0:0.2:2.0
         model = XXZ(Δ)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
