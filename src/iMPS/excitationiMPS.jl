@@ -296,54 +296,6 @@ function H_eff(k, A, Bu, H, Ln, Rn, LH, RH, s2, s3)
     return HB
 end
 
-# function H_eff(k, A, Bu, Bd, H, L_n, R_n, s1, s2, s3)
-#     H_mn = 0
-
-#     # 1. B, B* and H on the same site
-#     H_L_AA = einH_L(A, A, A, A, L_n, H)
-#     H_L = einH_L(Bu,A,Bd,A,L_n,H)                  + 
-#           einH_L(Bu,A,A,Bd,L_n,H) * exp(1.0im * k) + 
-#           einH_L(A,Bu,Bd,A,L_n,H) * exp(1.0im *-k) + 
-#           einH_L(A,Bu,A,Bd,L_n,H)
-#     H_mn += ein"ab,ab->"(H_L, R_n)[]
-
-#     # critical subtraction for the energy gap
-#     # H_mn -= 4 * ein"ab,ab->"(H_L_AA, R_n)[] * ein"((ad,acb),dce),be->"(L_n, Bu, conj(Bd), R_n)[]
-
-#     # 2. B and B* are on the same site but away from the site of H
-#     H_R_AA = einH_R(A, A, A, A, R_n, H)
-#     H_mn += ein"ab,ab->"(H_L_AA, eins_A_R(s1, Bu, Bd, R_n))[]
-#     H_mn += ein"ab,ab->"(einL_A_s(L_n, Bu, Bd, s1), H_R_AA)[]
-
-#     # 3. one of B and B* on the same site of H
-#     s2_A_Bd_R = eins_A_R(s2, A, Bd, R_n)
-#     s3_Bu_A_R = eins_A_R(s3, Bu, A, R_n)
-#     H_mn += ein"ab,ab->"(einH_L(Bu, A, A, A, L_n, H), s2_A_Bd_R)[] * exp(2.0im * k)
-#     H_mn += ein"ab,ab->"(einH_L(A, Bu, A, A, L_n, H), s2_A_Bd_R)[] * exp(1.0im * k)
-#     H_mn += ein"ab,ab->"(einH_L(A, A, Bd, A, L_n, H), s3_Bu_A_R)[] * exp(2.0im *-k)
-#     H_mn += ein"ab,ab->"(einH_L(A, A, A, Bd, L_n, H), s3_Bu_A_R)[] * exp(1.0im *-k)
-
-#     L_Bu_A_s2 = einL_A_s(L_n, Bu, A, s2)
-#     L_A_Bd_s3 = einL_A_s(L_n, A, Bd, s3)
-#     H_mn += ein"ab,ab->"(L_Bu_A_s2, einH_R(A, A, Bd, A, R_n, H))[] * exp(1.0im * k)
-#     H_mn += ein"ab,ab->"(L_Bu_A_s2, einH_R(A, A, A, Bd, R_n, H))[] * exp(2.0im * k)
-#     H_mn += ein"ab,ab->"(L_A_Bd_s3, einH_R(Bu, A, A, A, R_n, H))[] * exp(1.0im *-k)
-#     H_mn += ein"ab,ab->"(L_A_Bd_s3, einH_R(A, Bu, A, A, R_n, H))[] * exp(2.0im *-k)
-
-#     # 4. B and B* are on the different sites and away from the site of H on the same side
-#     H_mn += ein"ab,ab->"(H_L_AA, eins_A_R(s1, Bu, A, s2_A_Bd_R))[] * exp(1.0im * k)
-#     H_mn += ein"ab,ab->"(H_L_AA, eins_A_R(s1, A, Bd, s3_Bu_A_R))[] * exp(1.0im *-k)
-
-#     H_mn += ein"ab,ab->"(einL_A_s(L_Bu_A_s2, A, Bd, s1), H_R_AA)[] * exp(1.0im * k)
-#     H_mn += ein"ab,ab->"(einL_A_s(L_A_Bd_s3, Bu, A, s1), H_R_AA)[] * exp(1.0im *-k)
-
-#     # 5. B and B* are on the different sites and away from the site of H on the different sides
-#     H_mn += ein"ab,ab->"(einH_L(A, A, A, A, L_Bu_A_s2, H), s2_A_Bd_R)[] * exp(3.0im * k)
-#     H_mn += ein"ab,ab->"(einH_L(A, A, A, A, L_A_Bd_s3, H), s3_Bu_A_R)[] * exp(3.0im *-k)
-
-#     return H_mn
-# end
-
 """
     excitation_spectrum(k, A, H, n)
 
@@ -378,7 +330,7 @@ function excitation_spectrum(k, A, H, n::Int = 1)
         return HB
     end
     # Δ, Y, info = geneigsolve(x -> f(x), X, n, :SR, ishermitian = true, isposdef = true)
-    Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = false, maxiter = 100)
+    Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = true, maxiter = 100)
     # @assert info.converged == 1
     return Δ, Y, info
 end

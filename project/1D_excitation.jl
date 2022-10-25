@@ -46,7 +46,7 @@ end
     Random.seed!(100)
     D,χ = 2,16
     s1 = []
-    for k in 0:pi/12:pi
+    for k in pi:pi/12:pi
         model = Heisenberg(0.5)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
@@ -68,20 +68,23 @@ end
 
 @testset "1D Heisenberg S=1 excitation with $atype" for atype in [Array]
     Random.seed!(100)
-    D,χ = 3,8
+    D,χ = 3,32
     s1 = []
-    for k in pi:pi/12:pi
+    for k in 0:pi/24:pi
         model = Heisenberg(1.0)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
         H = hamiltonian(model)
-        Δ, = excitation_spectrum(k, A, H)
-        @show k,real(Δ)
+        Δ, = excitation_spectrum(k, A, H, 30)
         push!(s1,real(Δ))
     end
-    # for i in 1:length(s1)
-    #     print("$(s1[i]),")
-    # end
+    for i in 1:length(s1)
+        print("{")
+        for j in s1[i]
+            print("$j,")
+        end
+        print("},")
+    end
     for i in 1:length(s1)
         print("$(s1[i][1]),")
     end

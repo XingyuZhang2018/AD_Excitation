@@ -12,7 +12,7 @@ using Zygote
     Random.seed!(100)
     D = 2
     model = Heisenberg(1/2)
-    for χ in 2 .^ (5:5)
+    for χ in 2 .^ (4:4)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
@@ -54,7 +54,7 @@ end
         A, e = optimizeiMPS(A; 
                             model = model,
                             f_tol = 1e-15,
-                            opiter = 1000)
+                            opiter = 10000)
         @show e 
     end
 end

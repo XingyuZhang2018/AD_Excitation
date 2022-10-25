@@ -131,23 +131,14 @@ end
 
 @testset "excitation energy" begin
     Random.seed!(100)
-    D,χ = 3,64
+    D,χ = 3,16
     model = Heisenberg(1.0)
     H = hamiltonian(model)
     A = init_mps(D = D, χ = χ,
                 infolder = "./data/$model/")
     
     k = pi
-    Δ, v, info = @time excitation_spectrum(k, A, H, 1)
+    Δ, v, info = @time excitation_spectrum(k, A, H, 30)
     @show Δ
-    # L_n, R_n   = env_norm(A)
-    # s1         = sum_series(     A, L_n, R_n)
-    # s2, s3     = sum_series_k(k, A, L_n, R_n)
-    # for B in v
-    #     gs = energy_gs(B, H)
-    #     ex = ein"abc,abc->"(H_eff(k, A, B,  H, L_n, R_n, s1, s2, s3), conj(B))[]/
-    #          ein"abc,abc->"(N_eff(      B,  L_n, R_n,              ), conj(B))[]
-    #     @show gs ex
-    # end
-    # @test Δ[1] ≈ 0.410479248463 atol = 1e-3
+    @test Δ[1] ≈ 0.410479248463 atol = 1e-3
 end
