@@ -321,9 +321,15 @@ end
 
 find at least `n` smallest excitation gaps 
 """
-function excitation_spectrum(k, A, H, n::Int = 1)
+function excitation_spectrum(k, A, model, n::Int = 1;
+                             infolder = "./data/", outfolder = "./data/")
+    infolder = joinpath( infolder, "$model")
+    outfolder = joinpath(outfolder, "$model")
+
     χ, D, _ = size(A)
-    H -= energy_gs(A, H) * ein"ab,cd->abcd"(I(D),I(D)) # critical subtraction for the energy gap
+    key = D, χ, infolder, outfolder
+    H = _arraytype(A)(hamiltonian(model))
+    H -= energy_gs(A, H, key) * ein"ab,cd->abcd"(I(D),I(D)) # critical subtraction for the energy gap
 
     Ln, Rn    = env_norm(A)
     sq_Ln     = sqrt(Ln)

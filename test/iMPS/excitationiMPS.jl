@@ -138,7 +138,7 @@ end
                 infolder = "./data/$model/")
     
     k = pi
-    Δ, v, info = @time excitation_spectrum(k, A, H, 1)
+    Δ, v, info = @time excitation_spectrum(k, A, model, 1)
     @show Δ
     @test Δ[1] ≈ 0.410479248463 atol = 1e-3
 end

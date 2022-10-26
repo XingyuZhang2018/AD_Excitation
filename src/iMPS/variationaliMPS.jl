@@ -50,7 +50,10 @@ function envir(A, key)
         if isfile(in_chkp_file)
             # println("environment load from $(in_chkp_file)")
             L_n,R_n = load(in_chkp_file)["env"]
-        end
+        else
+            L_n = _arraytype(A)(rand(eltype(A), size(A,1), size(A,1)))
+            R_n = _arraytype(A)(rand(eltype(A), size(A,3), size(A,3)))
+        end 
     end
     _, L_n = norm_L(A, conj(A), L_n)
     _, R_n = norm_R(A, conj(A), R_n)

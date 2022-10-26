@@ -46,7 +46,7 @@ end
     Random.seed!(100)
     D = 3
     model = Heisenberg(1.0)
-    for χ in 2 .^ (7:7)
+    for χ in 2 .^ (2:2)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
