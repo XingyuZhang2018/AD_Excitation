@@ -10,7 +10,7 @@ function init_mps(;infolder = "./data/",
                     D::Int = 2, 
                     χ::Int = 5)
 
-    in_chkp_file = infolder*"/D$(D)_χ$(χ).jld2"
+    in_chkp_file = joinpath(infolder,"D$(D)_χ$(χ).jld2")
     if isfile(in_chkp_file)
         A = atype(load(in_chkp_file)["A"])
         verbose && println("load mps from $in_chkp_file")
@@ -35,13 +35,31 @@ L   ├─ H ─┤   R          │   ├─────┤   │
 │   │     │   │          │   f     g   │  
 └───A*────A*──┘          h───┴──i──┴───j 
 """
-function energy_gs(A, H)
-    _, L_n = norm_L(A, conj(A))
-    _, R_n = norm_R(A, conj(A))
+function energy_gs(A, H, key)
+    L_n, R_n = envir(A, key)
     env = ein"((ah,abc),cde),((hfi,igj),ej)->bfdg"(L_n,A,A,conj(A),conj(A),R_n)
     e   = ein"abcd,abcd->"(env,H)[]
     n   = ein"aabb->"(env)[]
     return e/n
+end
+
+function envir(A, key)
+    D, χ, infolder, outfolder = key
+    Zygote.@ignore begin
+        in_chkp_file = joinpath([infolder,"env","D$(D)_χ$(χ).jld2"]) 
+        if isfile(in_chkp_file)
+            # println("environment load from $(in_chkp_file)")
+            L_n,R_n = load(in_chkp_file)["env"]
+        end
+    end
+    _, L_n = norm_L(A, conj(A), L_n)
+    _, R_n = norm_R(A, conj(A), R_n)
+
+    Zygote.@ignore begin
+        out_chkp_file = joinpath([outfolder,"env","D$(D)_χ$(χ).jld2"]) 
+        save(out_chkp_file, "env", (L_n, R_n))
+    end
+    return L_n, R_n
 end
 
 function optimizeiMPS(A; 
@@ -56,8 +74,9 @@ function optimizeiMPS(A;
     outfolder = joinpath(outfolder, "$model")
 
     χ, D, _ = size(A)
+    key = (D, χ, infolder, outfolder)
     H = _arraytype(A)(hamiltonian(model))
-    f(A) = real(energy_gs(A, H))
+    f(A) = real(energy_gs(A, H, key))
     g(A) = Zygote.gradient(f,A)[1]
     res = optimize(f, g, 
                    A, optimmethod,inplace = false,

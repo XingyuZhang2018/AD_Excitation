@@ -160,7 +160,13 @@ einLAR(L,A,R) = ein"(ad,acb),be->dce"(L, A, R)
      └───A*───┴─            e──┴──f──┴──g 
     ```
 """
-einLB(L_n, B, A, s2) = ein"((ae,adb),edf),bfcg->cg"(L_n, B, conj(A), s2)
+# einLB(L_n, B, A, s2) = ein"((ae,adb),edf),bfcg->cg"(L_n, B, conj(A), s2)
+function einLB(k, L, B, A, Ln, Rn)
+    LB, info = linsolve(LB->LB - exp(1.0im * k) * ein"(ad,abc),dbe->ce"(LB,A,conj(A)) + exp(1.0im * k) * ein"ab,ab->"(LB,Rn)[]*Ln, ein"(ad,abc),dbe->ce"(L,B,conj(A)))
+    @assert info.converged == 1
+    return LB
+end
+
 
 """
     ```
@@ -171,8 +177,12 @@ einLB(L_n, B, A, s2) = ein"((ae,adb),edf),bfcg->cg"(L_n, B, conj(A), s2)
     ─┴───A*──┘              e──┴──f──┴──g 
     ```
 """
-einRB(s3, B, A, R_n) = ein"aebf,(bdc,(fdg,cg))->ae"(s3, B, conj(A), R_n)
-
+# einRB(s3, B, A, R_n) = ein"aebf,(bdc,(fdg,cg))->ae"(s3, B, conj(A), R_n)
+function einRB(k, R, B, A, Ln, Rn)
+    RB, info = linsolve(RB->RB - exp(1.0im *-k) * ein"(abc,ce),dbe->ad"(A,RB,conj(A)) + exp(1.0im *-k) * ein"ab,ab->"(Ln,RB)[]*Rn, ein"(abc,ce),dbe->ad"(B,R,conj(A)))
+    @assert info.converged == 1
+    return RB
+end
 
 """
     ```
@@ -183,7 +193,12 @@ einRB(s3, B, A, R_n) = ein"aebf,(bdc,(fdg,cg))->ae"(s3, B, conj(A), R_n)
      └───A3*───A4*──┴──           i──┴──j──┴──k──┴──l 
     ```
 """
-einLH(A1, A2, A3, A4, s1, L_n, H) = ein"(((((ai,abc),cde),bgdh),igj),jhk),ekfl->fl"(L_n,A1,A2,H,conj(A3),conj(A4),s1)
+# einLH(A1, A2, A3, A4, s1, L_n, H) = ein"(((((ai,abc),cde),bgdh),igj),jhk),ekfl->fl"(L_n,A1,A2,H,conj(A3),conj(A4),s1)
+function einLH(k, L, A1, A2, A3, A4, A, H, Ln, Rn)
+    LH, info = linsolve(LH->LH - exp(1.0im * k) * ein"(ad,abc),dbe->ce"(LH,A,conj(A)) + exp(1.0im * k) * ein"ab,ab->"(LH,Rn)[]*Ln, ein"(((ah,abc),cde),(hfi,igj)),bfdg->ej"(L,A1,A2,conj(A3),conj(A4),H))
+    @assert info.converged == 1
+    return LH
+end
 
 """
     ```
@@ -194,7 +209,12 @@ einLH(A1, A2, A3, A4, s1, L_n, H) = ein"(((((ai,abc),cde),bgdh),igj),jhk),ekfl->
      ──┴────A3*───A4*─┘          i──┴──j──┴──k──┴──l 
     ```
 """
-einRH(A1, A2, A3, A4, s1, R_n, H) = ein"(((bcd,(def,fl),cgeh),khl),jgk),aibj->ai"(A1,A2,R_n,H,conj(A4),conj(A3),s1)
+# einRH(A1, A2, A3, A4, s1, R_n, H) = ein"(((bcd,(def,fl),cgeh),khl),jgk),aibj->ai"(A1,A2,R_n,H,conj(A4),conj(A3),s1)
+function einRH(k, R, A1, A2, A3, A4, A, H, Ln, Rn)
+    RB, info = linsolve(RB->RB - exp(1.0im *-k) * ein"(abc,ce),dbe->ad"(A,RB,conj(A)) + exp(1.0im *-k) * ein"ab,ab->"(Ln,RB)[]*Rn, ein"((abc,cde),((hfi,igj),ej)),bfdg->ah"(A1,A2,conj(A3),conj(A4),R,H))
+    @assert info.converged == 1
+    return RB
+end
 
 """
     ```
@@ -253,9 +273,9 @@ end
 
     get `<Ψₖ(B)|H|Ψₖ(B)>`, including sum graphs form https://arxiv.org/abs/1810.07006 Eq.(193)
 """
-function H_eff(k, A, Bu, H, Ln, Rn, LH, RH, s2, s3)
+function H_eff(k, A, Bu, H, Ln, Rn, LH, RH)
     # LB = einLB(Ln, Bu, A, s2)
-    RB = einRB(s3, Bu, A, Rn)
+    RB = einRB(k, Rn, Bu, A, Ln, Rn)
 
     # 1. B and dB on the same site but are away from H
     HB  = einLAR(LH, Bu, Rn) +
@@ -277,9 +297,9 @@ function H_eff(k, A, Bu, H, Ln, Rn, LH, RH, s2, s3)
           
     
     # 4. LB and RH on the same site of A
-    L1 = einLB(LH, Bu,A,    s2)        * exp(1.0im * k) +
-         einLH(Bu, A, A, A, s2, Ln, H) * exp(2.0im * k) +
-         einLH(A,  Bu,A, A, s2, Ln, H) * exp(1.0im * k)  
+    L1 = einLB(k, LH, Bu,A, Ln, Rn)        * exp(1.0im * k) +
+         einLH(k, Ln, Bu, A, A, A, A, H, Ln, Rn) * exp(2.0im * k) +
+         einLH(k, Ln, A, Bu, A, A, A, H, Ln, Rn) * exp(1.0im * k)  
         #  einLH(A,  A, A, A, s2, LB, H) * exp(3.0im * k)
     # R1 = einRB(s3, Bu,A, RH          ) * exp(1.0im *-k) +
     #      einRH(Bu, A, A, A, s3, Rn, H) * exp(1.0im *-k) +
@@ -310,11 +330,11 @@ function excitation_spectrum(k, A, H, n::Int = 1)
     sq_Rn     = sqrt(Rn)
     inv_sq_Ln = sq_Ln^-1
     inv_sq_Rn = sq_Rn^-1
-    s1        = sum_series(     A, Ln, Rn)
-    s2, s3    = sum_series_k(k, A, Ln, Rn)
+    # s1        = sum_series(     A, Ln, Rn)
+    # s2, s3    = sum_series_k(k, A, Ln, Rn)
     VL        = initial_VL(A, Ln)
-    LH        = einLH(A, A, A, A, s1, Ln, H) 
-    RH        = einRH(A, A, A, A, s1, Rn, H)
+    LH        = einLH(0, Ln, A, A, A, A, A, H, Ln, Rn) 
+    RH        = einRH(0, Rn, A, A, A, A, A, H, Ln, Rn)
 
     X = zeros(ComplexF64, χ*(D-1), χ)
     # X = rand(ComplexF64, χ, D, χ)
@@ -323,7 +343,7 @@ function excitation_spectrum(k, A, H, n::Int = 1)
     
     function f(X)
         Bu = ein"((ba,bcd),de),ef->acf"(inv_sq_Ln, VL, X, inv_sq_Rn)
-        HB = H_eff(k, A, Bu, H, Ln, Rn, LH, RH, s2, s3)
+        HB = H_eff(k, A, Bu, H, Ln, Rn, LH, RH)
         # NB = N_eff(k, A, Bu, Ln, Rn, s2, s3)
         HB = ein"((ba,bcd),acf),de->fe"(inv_sq_Ln,HB,conj(VL),inv_sq_Rn)
         # NB = ein"((ba,bcd),acf),de->fe"(inv_sq_Ln,NB,conj(VL),inv_sq_Rn)

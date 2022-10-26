@@ -112,7 +112,7 @@ function hamiltonian(model::XXZ)
     Δ = model.Δ
     # σx, σy, σz = 2*const_Sx(0.5), 2*const_Sy(0.5), 2*const_Sz(0.5)
     Sx, Sy, Sz = const_Sx(0.5), const_Sy(0.5), const_Sz(0.5)
-        ein"ij,kl -> ijkl"(Sx, Sx) -
-        ein"ij,kl -> ijkl"(Sy, Sy) -
+        ein"ij,kl -> ijkl"(Sx, Sx) +
+        ein"ij,kl -> ijkl"(Sy, Sy) +
     Δ * ein"ij,kl -> ijkl"(Sz, Sz)
 end

@@ -12,7 +12,7 @@ using Zygote
     Random.seed!(100)
     D = 2
     model = Heisenberg(1/2)
-    for χ in 2 .^ (4:4)
+    for χ in 2 .^ (2:2)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
@@ -46,7 +46,7 @@ end
     Random.seed!(100)
     D = 3
     model = Heisenberg(1.0)
-    for χ in 2 .^ (5:5)
+    for χ in 2 .^ (7:7)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")

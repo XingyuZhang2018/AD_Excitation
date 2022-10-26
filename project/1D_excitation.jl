@@ -5,11 +5,11 @@ using Test
     Random.seed!(1000)
     D,χ = 2,16
     gap1 = []
+    k = 0
     for Δ in 1.0:0.2:2.0
         model = XXZ(Δ)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
-        k = pi
         H = hamiltonian(model)
         Δ, = excitation_spectrum(k, A, H)
         push!(gap1,real(Δ[1]))
