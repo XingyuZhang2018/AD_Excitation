@@ -26,7 +26,7 @@ function init_mps(;infolder = "./data/",
 end
 
 """
-    e = energy_gs(T,H)
+    e = energy_gs(A, H, key)
 
 ground state energy
 ┌───A─────A───┐          a───┬──c──┬───e

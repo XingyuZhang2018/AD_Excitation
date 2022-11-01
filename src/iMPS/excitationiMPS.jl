@@ -1,3 +1,5 @@
+export excitation_spectrum
+
 """
     L_n, R_n = env_norm(A)
 
@@ -323,7 +325,7 @@ find at least `n` smallest excitation gaps
 """
 function excitation_spectrum(k, A, model, n::Int = 1;
                              infolder = "./data/", outfolder = "./data/")
-    infolder = joinpath( infolder, "$model")
+     infolder = joinpath( infolder, "$model")
     outfolder = joinpath(outfolder, "$model")
 
     χ, D, _ = size(A)

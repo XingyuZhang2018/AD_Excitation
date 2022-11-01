@@ -35,7 +35,7 @@ L   │  =   λL L                 │
 """
 function norm_L(Au, Ad, L = _arraytype(Au)(rand(eltype(Au), size(Au,1), size(Ad,1))); kwargs...)
     λs, Ls, info = eigsolve(L -> ein"(ad,acb),dce -> be"(L,Au,Ad), L, 1, :LM; ishermitian = false, kwargs...)
-    info.converged == 0 && @warn "leftenv not converged"
+    info.converged == 0 && @warn "norm_L not converged"
     return λs[1], Ls[1]
 end
 
@@ -55,6 +55,45 @@ function norm_R(Au, Ad, R = _arraytype(Au)(randn(eltype(Au), size(Au,3), size(Ad
     Au = permutedims(Au,(3,2,1))
     Ad = permutedims(Ad,(3,2,1))
     return norm_L(Au, Ad, R; kwargs...)
+end
+
+"""
+    λ, E = env_E(Au, Ad, M, E = rand(eltype(Au), size(Au,1), size(M,1), size(Ad,1)); kwargs...)
+
+Compute the left environment tensor for MPS `Au`,`Ad` and MPO `M`, by finding the left fixed point
+of `Au - M - Ad` contracted along the physical dimension.
+```
+┌───Au─      ┌──        a ────┬──── c       a ─b──┬──── c 
+│   │        │          │     b     │       │     d     │   
+E───M ─  = λ E─         ├─ d ─┼─ e ─┤       ├─ e ─┼─ f ─┤ 
+│   │        │          │     g     │       │     g     │   
+└───Ad─      └──        f ────┴──── h       h ─i──┴──── j 
+```
+"""
+function env_E(Au, Ad, M, E = _arraytype(Au)(rand(eltype(Au), size(Au,1), size(M,1), size(Au,1))); kwargs...)
+    λs, Es, info = eigsolve(E -> ein"((adf,abc),dgeb),fgh -> ceh"(E,Au,M,Ad), E, 1, :LM; ishermitian = false, kwargs...)
+    info.converged == 0 && @warn "env_E not converged"
+    return λs[1], Es[1]
+end
+
+"""
+    λ, Ǝ = env_Ǝ(Au, Ad, M, Ǝ = rand(eltype(A), size(A,3), size(M,3), size(A,3)); kwargs...)
+
+Compute the right environment tensor for MPS `Au`,`Ad` and MPO `M`, by finding the right fixed point
+of `Au - M - Ad` contracted along the physical dimension.
+```
+ ──Au──┐       ──┐   
+   │   │         │   
+ ──M ──Ǝ   = λ ──Ǝ  
+   │   │         │   
+ ──Ad──┘       ──┘  
+```
+"""
+function env_Ǝ(Au, Ad, M, Ǝ = _arraytype(Au)(rand(eltype(Au), size(Au,3), size(M,3), size(Ad,3))); kwargs...)
+    Au = permutedims(Au,(3,2,1)  )
+    Ad = permutedims(Ad,(3,2,1)  )
+    M  = permutedims(M, (3,2,1,4))
+    return env_E(Au, Ad, M, Ǝ; kwargs...)
 end
 
 function overlap(Au, Ad)

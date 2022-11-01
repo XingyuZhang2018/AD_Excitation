@@ -1,5 +1,6 @@
 using AD_Excitation
 using Test
+using Random
 
 @testset "1D XXZ S=1/2 excitation with $atype" for atype in [Array]
     Random.seed!(1000)
@@ -10,8 +11,7 @@ using Test
         model = XXZ(Δ)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
-        H = hamiltonian(model)
-        Δ, = excitation_spectrum(k, A, H)
+        Δ, = excitation_spectrum(k, A, model)
         push!(gap1,real(Δ[1]))
     end
     @show gap1
@@ -26,8 +26,7 @@ end
         model = XXZ(1.0)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
-        H = hamiltonian(model)
-        Δ, = excitation_spectrum(k, A, H, 30)
+        Δ, = excitation_spectrum(k, A, model, 30)
         push!(s1,real(Δ))
     end
     # for i in 1:length(s1)
@@ -50,8 +49,7 @@ end
         model = Heisenberg(0.5)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
-        H = hamiltonian(model)
-        Δ, = excitation_spectrum(k, A, H, 30)
+        Δ, = excitation_spectrum(k, A, model, 30)
         push!(s1,real(Δ))
     end
     for i in 1:length(s1)
@@ -68,10 +66,33 @@ end
 
 @testset "1D Heisenberg S=1 excitation with $atype" for atype in [Array]
     Random.seed!(100)
-    D,χ = 3,16
+    D,χ = 3,8
     s1 = []
     for k in pi:pi/24:pi
         model = Heisenberg(1.0)
+        A = init_mps(D = D, χ = χ,
+                     infolder = "./data/$model/")
+        Δ, = @time excitation_spectrum(k, A, model, 1)
+        push!(s1,real(Δ))
+    end
+    for i in 1:length(s1)
+        print("{")
+        for j in s1[i]
+            print("$j,")
+        end
+        print("},")
+    end
+    for i in 1:length(s1)
+        print("$(s1[i][1]),")
+    end
+end
+
+@testset "1D TFIsing S=1/2 excitation with $atype" for atype in [Array]
+    Random.seed!(100)
+    D,χ = 2,8
+    s1 = []
+    for k in pi:pi/24:pi
+        model = TFIsing(1/2,1.0)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
         Δ, = @time excitation_spectrum(k, A, model, 1)

@@ -1,5 +1,5 @@
 using AD_Excitation
-using AD_Excitation:norm_L,norm_R
+using AD_Excitation:norm_L,norm_R,env_E,env_Ǝ
 using CUDA
 using KrylovKit
 using LinearAlgebra
@@ -39,4 +39,20 @@ end
     @test λL * FL ≈ ein"(ad,acb), dce -> be"(FL,Au,Ad)
     λR,FR = norm_R(Au, Ad)
     @test λR * FR ≈ ein"(be,acb), dce -> ad"(FR,Au,Ad)
+end
+
+@testset "env_E and env_Ǝ with $atype{$dtype}" for atype in [Array], dtype in [Float64, ComplexF64]
+    Random.seed!(100)
+    d = 2
+    D = 10
+
+    Au = atype(rand(dtype,D,d,D))
+    Ad = atype(rand(dtype,D,d,D))
+    M  = atype(rand(dtype,d,d,d,d))
+
+    λE,E = env_E(Au, Ad, M)
+    @test λE * E ≈ ein"((adf,abc),dgeb),fgh -> ceh"(E,Au,M,Ad)
+    λƎ,Ǝ = env_Ǝ(Au, Ad, M)
+    @test λƎ * Ǝ ≈ ein"((abc,ceh),dgeb),fgh -> adf"(Au,Ǝ,M,Ad)
+    @show λE λƎ
 end

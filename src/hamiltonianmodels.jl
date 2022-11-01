@@ -92,7 +92,7 @@ two-site operator.
 """
 function hamiltonian(model::TFIsing)
     S, hx = model.S, model.hx
-    Sx, Sz = const_Sx(S), const_Sz(S)
+    Sx, Sz = 2*const_Sx(1/2), 2*const_Sz(1/2)
     D = size(Sx,1)
        - ein"ij,kl -> ijkl"(Sz,Sz) -
     hx/2 * ein"ij,kl -> ijkl"(Sx, I(D)) -

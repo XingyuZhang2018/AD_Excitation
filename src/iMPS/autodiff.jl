@@ -90,3 +90,38 @@ function ChainRulesCore.rrule(::typeof(norm_L), Au::AbstractArray{T}, Ad::Abstra
     end
     return (λl, L), back
 end
+
+"""
+    ChainRulesCore.rrule(::typeof(leftenv), AL::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
+```
+           ┌──  AL ──┐       
+           │    │    │       
+dM   =  -  E ──   ── ξE      
+           │    │    │       
+           └──  AL ──┘       
+           ┌──     ──┐    
+           │    │    │    
+dAu  =  -  E ── M ── ξE   
+           │    │    │    
+           └──  Ad ──┘    
+
+           ┌──  Au ──┐        a ────┬──── c 
+           │    │    │        │     b     │  
+dAu  = -   E ── M ── ξE       ├─ d ─┼─ e ─┤ 
+           │    │    │        │     g     │ 
+           └──     ──┘        f ────┴──── h 
+```
+"""
+function ChainRulesCore.rrule(::typeof(env_E), Au::AbstractArray{T}, Ad::AbstractArray{T}, M::AbstractArray{T}, E::AbstractArray{T}; kwargs...) where {T}
+    λ, E = env_E(Au, Ad, M, E)
+    function back((dλ, dE))
+        ξE, info = linsolve(Ǝ -> ein"((abc,ceh),dgeb),fgh -> adf"(Au,Ǝ,M,Ad), permutedims(dE, (3, 2, 1)), -λ, 1)
+        # errL = ein"abc,cba ->"(FL, ξl)[]
+        # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
+        dAu = -conj!(ein"((adf,fgh),dgeb),ceh -> abc"(E, Ad, M, ξE))
+        dM  = -conj!(ein"(adf,fgh),(abc,ceh) -> dgeb"(E, Ad,Au, ξE))
+        dAd = -conj!(ein"((adf,abc),dgeb),ceh -> fgh"(E, Au, M, ξE))
+        return  NoTangent(), dAu, dAd, dM, NoTangent()...
+    end
+    return (λ, E), back
+end
