@@ -18,12 +18,12 @@ function MPO(model::Heisenberg)
     d = size(Sx, 1)
     M = zeros(ComplexF64, 5, d, 5, d)
     M[1,:,1,:] .= I(d)
-    M[1,:,2,:] .= Jx * Sx
-    M[1,:,3,:] .= Jy * Sy
-    M[1,:,4,:] .= Jz * Sz
-    M[2,:,5,:] .= Sx
-    M[3,:,5,:] .= Sy
-    M[4,:,5,:] .= Sz
+    M[2,:,1,:] .= Jx * Sx
+    M[3,:,1,:] .= Jy * Sy
+    M[4,:,1,:] .= Jz * Sz
+    M[5,:,2,:] .= Sx
+    M[5,:,3,:] .= Sy
+    M[5,:,4,:] .= Sz
     M[5,:,5,:] .= I(d)
     return M
 end

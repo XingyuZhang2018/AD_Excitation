@@ -29,7 +29,7 @@ end
     Random.seed!(100)
     D = 2
     model = TFIsing(1/2,1.0)
-    for χ in 2 .^ (3:3)
+    for χ in 2 .^ (5:5)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
@@ -37,7 +37,7 @@ end
         A, e = optimizeiMPS(A; 
                             model = model,
                             f_tol = 1e-15,
-                            opiter = 10000)
+                            opiter = 100)
         @show e 
     end
 end
@@ -46,7 +46,7 @@ end
     Random.seed!(100)
     D = 3
     model = Heisenberg(1.0)
-    for χ in 2 .^ (8:8)
+    for χ in 2 .^ (4:4)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
@@ -54,7 +54,7 @@ end
         A, e = optimizeiMPS(A; 
                             model = model,
                             f_tol = 1e-20,
-                            opiter = 10000)
+                            opiter = 10)
         @show e 
     end
 end

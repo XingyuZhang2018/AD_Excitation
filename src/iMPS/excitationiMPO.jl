@@ -12,12 +12,12 @@ a ────┬──── c
 f ────┴──── h 
 
 """
-function energy_gs_MPO(A, M, key)
-    E, Ǝ = envir_MPO(A, M, key)
+function energy_gs_MPO(A, M)
+    E, Ǝ = envir_MPO(A, M)
     e = ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A))[]
     n = ein"abc,abc -> "(E,Ǝ)[]
-    @show n
-    return e/n
+    @show e n
+    return e-n
 end
 
 # function envir_MPO(A, M, key)
@@ -36,59 +36,53 @@ end
 #     _, Ǝ = env_Ǝ(A, conj(A), M, Ǝ)
     
 #     E /= ein"abc,abc->"(E, Ǝ)[]
+    
 #     # Zygote.@ignore begin
 #     #     out_chkp_file = joinpath([outfolder,"env","MPO_D$(D)_χ$(χ).jld2"]) 
 #     #     save(out_chkp_file, "env", (E, Ǝ))
 #     # end
-#     # c,ɔ = env_norm(A)
-#     # σx, σz = 2*const_Sx(1/2), 2*const_Sz(1/2)
-#     # Eo /= ein"abc,abc->"(Eo,Ǝo)[]
-#     # c = Eo[:,3,:]
-#     # ɔ = Ǝo[:,1,:]
-#     # c /= ein"ab,ab->"(c, ɔ)[]
-#     # YR = ein"((abc,bd),cf),edf->ae"(A,σx,ɔ,conj(A)) + ein"(((((cde,dg),ej),igj),abc),bf),hfi->ah"(A,σz,ɔ,conj(A),A,σz,conj(A))
-#     # @show ein"ab,ab->"(c,YR)[] 
-#     # E = zero(Eo)
-#     # E[:,5,:] = Eo[:,5,:]
-#     # Ǝ = zero(Ǝo)
-#     # Ǝ[:,1,:] = Ǝo[:,1,:]
 #     return E, Ǝ
 # end
 
-function envir_MPO(A, M, key)
-    D, χ, infolder, outfolder = key
-    σx, σz = 2*const_Sx(1/2), 2*const_Sz(1/2)
-    E = zeros(ComplexF64, χ,3,χ)
-    Ǝ = zeros(ComplexF64, χ,3,χ)
+function envir_MPO(A, M)
+    χ,d,_ = size(A)
+    W     = size(M, 1)
+    E = zeros(ComplexF64, χ,W,χ)
+    Ǝ = zeros(ComplexF64, χ,W,χ)
     c,ɔ = env_norm(A)
 
-    YL = -ein"(abc,bd),(ae,edf)->cf"(A,σx,c,conj(A)) - ein"(((((abc,bf),ah),hfi),cde),dg),igj->ej"(A,σz,c,conj(A),A,σz,conj(A))
-    bL = YL - ein"ab,ab->"(YL,ɔ)[] * c
-    E[:,1,:], info1 = linsolve(E->E - ein"abc,(ad,dbe)->ce"(A,E,conj(A)) + ein"ab,ab->"(E, ɔ)[] * c, bL)
-    @assert info1.converged == 1
-    E[:,2,:] = ein"(abc,bd),(ae,edf)->cf"(A,σz,c,conj(A))
-    E[:,3,:] = c
+    E[:,W,:] = c
+    for i in W-1:-1:1
+        YL = zeros(ComplexF64, χ,χ)
+        for j in i+1:W
+            YL += ein"(abc,bd),(ae,edf)->cf"(A,M[j,:,i,:],E[:,j,:],conj(A))
+        end
+        if M[i,:,i,:] == I(d)
+            bL = YL - ein"ab,ab->"(YL,ɔ)[] * c
+            E[:,i,:], infoE = linsolve(E->E - ein"abc,(ad,dbe)->ce"(A,E,conj(A)) + ein"ab,ab->"(E, ɔ)[] * c, bL)
+            @assert infoE.converged == 1
+        else
+            E[:,i,:] = YL
+        end
+    end
 
-    YR = -ein"((abc,bd),cf),edf->ae"(A,σx,ɔ,conj(A)) - ein"(((((cde,dg),ej),igj),abc),bf),hfi->ah"(A,σz,ɔ,conj(A),A,σz,conj(A))
-    bR = YR - ein"ab,ab->"(c,YR)[] * ɔ
     Ǝ[:,1,:] = ɔ
-    Ǝ[:,2,:] = -ein"((abc,bd),cf),edf->ae"(A,σz,ɔ,conj(A))
-    Ǝ[:,3,:], info2 = linsolve(Ǝ->Ǝ - ein"(abc,ce),dbe->ad"(A,Ǝ,conj(A)) + ein"ab,ab->"(c, Ǝ)[] * ɔ, bR)
-    @assert info2.converged == 1
+    for i in 2:W
+        YR = zeros(ComplexF64, χ,χ)
+        for j in 1:i-1
+            YR += ein"((abc,bd),cf),edf->ae"(A,M[i,:,j,:],Ǝ[:,j,:],conj(A))
+        end
+        if M[i,:,i,:] == I(d)
+            bR = YR - ein"ab,ab->"(c,YR)[] * ɔ
+            Ǝ[:,i,:], infoƎ = linsolve(Ǝ->Ǝ - ein"(abc,ce),dbe->ad"(A,Ǝ,conj(A)) + ein"ab,ab->"(c, Ǝ)[] * ɔ, bR)
+            @assert infoƎ.converged == 1
+        else
+            Ǝ[:,i,:] = YR
+        end
+    end
 
-    # @show norm(ein"((abc,ceh),dgeb),fgh -> adf"(A,Ǝ,M,conj(A))[:,3,:] - bR)
     # @show ein"ab,ab->"(c,YR)[] ein"ab,ab->"(YL,ɔ)[] ein"ab,ab->"(c,Ǝ[:,3,:])[] ein"ab,ab->"(E[:,1,:],ɔ)[] 
     # @show ein"(abc,ce),(ad,dbe)->"(A,Ǝ[:,3,:],c,conj(A))[]
-
-    # Eo = zero(E)
-    # Eo[:,1,:] = E[:,3,:]
-    # Eo[:,2,:] = E[:,3,:]
-    # Ǝo = zero(Ǝ)
-    # Ǝo[:,1,:] = Ǝ[:,1,:]
-    # Ǝo[:,2,:] = Ǝ[:,2,:]
-    # Ǝ[:,2,:] = ɔ
-    # Ǝ[:,3,:] = ɔ
-    # E /= ein"(((adf,abc),dgeb),fgh),ceh -> "(E,A,M,conj(A),Ǝ)[]
     return E, Ǝ
 end
 
@@ -163,7 +157,7 @@ function excitation_spectrum_MPO(k, A, model, n::Int = 1;
     key = D, χ, infolder, outfolder
     M = _arraytype(A)(MPO(model))
 
-    E, Ǝ      = envir_MPO(A, M, key)
+    E, Ǝ      = envir_MPO(A, M)
     Ln, Rn    = env_norm(A)
     sq_Ln     = sqrt(Ln)
     sq_Rn     = sqrt(Rn)
@@ -184,5 +178,6 @@ function excitation_spectrum_MPO(k, A, model, n::Int = 1;
     end
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = true, maxiter = 100)
     # @assert info.converged == 1
+    Δ .-= real(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A))[])
     return Δ, Y, info
 end

@@ -89,7 +89,7 @@ end
 
 @testset "1D TFIsing S=1/2 excitation with $atype" for atype in [Array]
     Random.seed!(100)
-    D,χ = 2,8
+    D,χ = 2,16
     s1 = []
     for k in pi:pi/24:pi
         model = TFIsing(1/2,1.0)

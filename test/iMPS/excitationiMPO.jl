@@ -5,25 +5,37 @@ using OMEinsum
 using Random
 using Test
 
-@testset "envir_MPO(A, M, key)" begin
-    Random.seed!(100)
-    D,χ = 2,8
+@testset "envir_MPO" begin
+    D,χ = 2,16
     model = TFIsing(0.5, 1.0)
-    infolder = "./data/$model/"
+    key = D,χ,"./data/$model/","./data/$model/"
     A = init_mps(D = D, χ = χ,
-                infolder = infolder)
+                 infolder = "./data/$model/")
     M = MPO(model)
-    key = D, χ, infolder, infolder
-    E, Ǝ = envir_MPO(A, M, key)
-    # @test ein"abc,abc->"(E, Ǝ)[]                                 ≈ 1
-    # @test ein"((adf,abc),dgeb),fgh -> ceh"(E,A,M,conj(A))        ≈ E
-    # @test ein"((abc,ceh),dgeb),fgh -> adf"(A,Ǝ,M,conj(A))        ≈ Ǝ
-    @test ein"(((adf,abc),dgeb),fgh),ceh -> "(E,A,M,conj(A),Ǝ)[] ≈ 1
+    eMPO = energy_gs_MPO(A, M)
+
+    H = hamiltonian(model)
+    eH = energy_gs(A, H, key)
+    @test eMPO ≈ eH
+end
+
+@testset "envir_MPO" begin
+    D,χ = 3,16
+    model = Heisenberg(1.0)
+    key = D,χ,"./data/$model/","./data/$model/"
+    A = init_mps(D = D, χ = χ,
+                 infolder = "./data/$model/")
+    M = MPO(model)
+    eMPO = energy_gs_MPO(A, M)
+
+    H = hamiltonian(model)
+    eH = energy_gs(A, H, key)
+    @test eMPO ≈ eH
 end
 
 @testset "H_eff" begin
     Random.seed!(100)
-    D,χ = 2,8
+    D,χ = 2,4
     model = TFIsing(0.5, 1.0)
     infolder = "./data/$model/"
     key = D, χ, infolder, infolder
@@ -46,24 +58,26 @@ end
         H_mn[i,j] = ein"abc,abc->"(H_eff(k, A, Bs[i], E, M, Ǝ), conj(Bs[j]))[]
     end
     @test H_mn ≈ H_mn'
-    @show H_mn
-    # # @test rank(H_mn) == M
-    # # @test rank((N_mn+N_mn')/2) == M
-    # λ, = eigen((N_mn+N_mn')/2)
-    # @show λ
-    # # @show (N_mn+N_mn')/2
-    # λ1, = eigen(H_mn, N_mn)
-    # @show λ1
-    # λ2, Y, info = eigsolve(x -> H_eff(k, A, x, VL, H, L_n, R_n, s1, s2, s3), Vs[1], 1, :SR; ishermitian = false, maxiter = 100)
-    # @show H_mn N_mn
-    # λ2, = geneigsolve(x->(H_mn*x,N_mn*x), rand(M,1), 5, :SR, ishermitian = true, isposdef = true)
-    # @show λ1 λ2  energy_gs(A, H)
 end
 
 @testset "excitation energy" begin
     Random.seed!(100)
-    D,χ = 2,8
+    D,χ = 2,16
     model = TFIsing(0.5, 1.0)
+    H = hamiltonian(model)
+    A = init_mps(D = D, χ = χ,
+                infolder = "./data/$model/")
+    
+    k = pi
+    Δ, v, info = @time excitation_spectrum_MPO(k, A, model, 1)
+    @show Δ
+    # @test Δ[1] ≈ 0.410479248463 atol = 1e-3
+end
+
+@testset "excitation energy" begin
+    Random.seed!(100)
+    D,χ = 3,16
+    model = Heisenberg(1.0)
     H = hamiltonian(model)
     A = init_mps(D = D, χ = χ,
                 infolder = "./data/$model/")
