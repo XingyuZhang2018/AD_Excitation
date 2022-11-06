@@ -20,22 +20,22 @@ function energy_gs_MPO(A, M)
     return e-n
 end
 
-# function envir_MPO(A, M, key)
-#     D, χ, infolder, outfolder = key
-#     Zygote.@ignore begin
-#         in_chkp_file = joinpath([infolder,"env","MPO_D$(D)_χ$(χ).jld2"]) 
-#         if isfile(in_chkp_file)
-#             # println("environment load from $(in_chkp_file)")
-#             E,Ǝ = load(in_chkp_file)["env"]
-#         else
+# function envir_MPO(A, M)
+#     # D, χ, infolder, outfolder = key
+#     # Zygote.@ignore begin
+#     #     in_chkp_file = joinpath([infolder,"env","MPO_D$(D)_χ$(χ).jld2"]) 
+#     #     if isfile(in_chkp_file)
+#     #         # println("environment load from $(in_chkp_file)")
+#     #         E,Ǝ = load(in_chkp_file)["env"]
+#     #     else
 #             E = _arraytype(A)(rand(eltype(A), size(A,1), size(M,1), size(A,1)))
 #             Ǝ = _arraytype(A)(rand(eltype(A), size(A,3), size(M,3), size(A,3)))
-#         end 
-#     end
+#     #     end 
+#     # end
 #     _, E = env_E(A, conj(A), M, E)
 #     _, Ǝ = env_Ǝ(A, conj(A), M, Ǝ)
     
-#     E /= ein"abc,abc->"(E, Ǝ)[]
+#     # E /= ein"abc,abc->"(E, Ǝ)[]
     
 #     # Zygote.@ignore begin
 #     #     out_chkp_file = joinpath([outfolder,"env","MPO_D$(D)_χ$(χ).jld2"]) 
@@ -55,7 +55,7 @@ function envir_MPO(A, M)
     for i in W-1:-1:1
         YL = zeros(ComplexF64, χ,χ)
         for j in i+1:W
-            YL += ein"(abc,bd),(ae,edf)->cf"(A,M[j,:,i,:],E[:,j,:],conj(A))
+            YL += ein"(abc,db),(ae,edf)->cf"(A,M[j,:,i,:],E[:,j,:],conj(A))
         end
         if M[i,:,i,:] == I(d)
             bL = YL - ein"ab,ab->"(YL,ɔ)[] * c
@@ -70,7 +70,7 @@ function envir_MPO(A, M)
     for i in 2:W
         YR = zeros(ComplexF64, χ,χ)
         for j in 1:i-1
-            YR += ein"((abc,bd),cf),edf->ae"(A,M[i,:,j,:],Ǝ[:,j,:],conj(A))
+            YR += ein"((abc,db),cf),edf->ae"(A,M[i,:,j,:],Ǝ[:,j,:],conj(A))
         end
         if M[i,:,i,:] == I(d)
             bR = YR - ein"ab,ab->"(c,YR)[] * ɔ
@@ -90,13 +90,13 @@ end
     ```
      ┌───B────┬─             a ────┬──── c 
      │   │    │              │     b     │ 
-     E   M    s              ├─ d ─┼─ e ─┤ 
+     E───M────s─             ├─ d ─┼─ e ─┤ 
      │   │    │              │     g     │ 
      └───A*───┴─             f ────┴──── h  
     ```
 """
-function einLB(k, L, B, A, E, M, Ǝ)
-    LB, info = linsolve(LB->LB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(LB,A,M,conj(A)) + exp(1.0im * k) * ein"abc,abc->"(LB,Ǝ)[]*E, ein"((adf,abc),dgeb),fgh -> ceh"(L,B,M,conj(A)))
+function einLB(k, L, B, A, M)
+    LB, info = linsolve(LB->LB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(LB,A,M,conj(A)), ein"((adf,abc),dgeb),fgh -> ceh"(L,B,M,conj(A)))
     @assert info.converged == 1
     return LB
 end
@@ -105,13 +105,13 @@ end
     ```
     ─┬───B───┐               a ────┬──── c
      │   │   │               │     b     │
-     s   M   Ǝ               ├─ d ─┼─ e ─┤
+    ─s───M───Ǝ               ├─ d ─┼─ e ─┤
      │   │   │               │     g     │
     ─┴───A*──┘               f ────┴──── h 
     ```
 """
-function einRB(k, R, B, A, E, M, Ǝ)
-    RB, info = linsolve(RB->RB - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(A,RB,M,conj(A)) + exp(1.0im *-k) * ein"abc,abc->"(E,RB)[]*Ǝ, ein"((abc,ceh),dgeb),fgh -> adf"(B,R,M,conj(A)))
+function einRB(k, R, B, A, M)
+    RB, info = linsolve(RB->RB - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(A,RB,M,conj(A)), ein"((abc,ceh),dgeb),fgh -> adf"(B,R,M,conj(A)))
     @assert info.converged == 1
     return RB
 end
@@ -131,14 +131,45 @@ eindB(A, E, M, Ǝ) = ein"((adf,abc),dgeb),ceh->fgh"(E,A,M,Ǝ)
     H_mn = H_eff(k, A, Bu, Bd, H, L_n, R_n, s1, s2, s3)
 
     get `<Ψₖ(B)|H|Ψₖ(B)>`, including sum graphs form https://arxiv.org/abs/1810.07006 Eq.(268)
+    ```
+    1. Bu and Bd on the same site of M
+        ┌───Bu──┐
+        │   │   │
+        E───M───Ǝ
+        │   │   │
+        └───Bd──┘
+
+    2. B and dB on different sites of M
+        ┌───Bu──┬───A───┐
+        │   │   │   │   │
+        E───M──s2───M───Ǝ
+        │   │   │   │   │
+        └───A*──┴───Bd──┘
+
+        ┌───A───┬───Bu──┐
+        │   │   │   │   │
+        E───M──s3───M───Ǝ
+        │   │   │   │   │
+        └───Bd──┴───A*──┘
+
+        s2 = sum of `eⁱᵏ 王` series: 
+          ───         ─┬─              ─┬──┬─              ─┬──┬──┬─                 ─┬──┬──┬─...─┬─
+                       │                │  │                │  │  │                   │  │  │     │ 
+     eⁱ⁰ᵏ ───  +  eⁱ¹ᵏ─┼─    +    eⁱ²ᵏ ─┼──┼─    +    eⁱ³ᵏ ─┼──┼──┼─  + ... +   eⁱⁿᵏ ─┼──┼──┼─...─┼─  + ...
+                       │                │  │                │  │  │                   │  │  │     │ 
+          ───         ─┴─              ─┴──┴─              ─┴──┴──┴─                 ─┴──┴──┴─...─┴─
+
+
+    ```
+
 """
 function H_eff(k, A, Bu, E, M, Ǝ)
     # 1. B and dB on the same site of M
     HB  = eindB(Bu, E, M, Ǝ)
  
     # 2. B and dB on different sites of M
-    HB += eindB(A, einLB(k, E, Bu, A, E, M, Ǝ), M, Ǝ) * exp(1.0im * k) +
-          eindB(A, E, M, einRB(k, Ǝ, Bu, A, E, M, Ǝ)) * exp(1.0im *-k)
+    HB += eindB(A, einLB(k, E, Bu, A, M), M, Ǝ) * exp(1.0im * k) +
+          eindB(A, E, M, einRB(k, Ǝ, Bu, A, M)) * exp(1.0im *-k)
 
     return HB
 end

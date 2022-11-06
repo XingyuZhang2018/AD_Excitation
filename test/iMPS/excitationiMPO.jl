@@ -1,5 +1,5 @@
 using AD_Excitation
-using AD_Excitation: envir_MPO, initial_VL,initial_excitation,H_eff
+using AD_Excitation: envir_MPO, initial_VL,initial_excitation,H_eff,energy_gs_MPO,energy_gs
 using LinearAlgebra
 using OMEinsum
 using Random
@@ -46,7 +46,7 @@ end
     
     l         = χ^2*(D-1)
     Ln, Rn    = env_norm(A)
-    E, Ǝ      = envir_MPO(A, M, key)
+    E, Ǝ      = envir_MPO(A, M)
     k         = pi
     inv_sq_Ln = sqrt(Ln)^-1
     inv_sq_Rn = sqrt(Rn)^-1
@@ -69,9 +69,9 @@ end
                 infolder = "./data/$model/")
     
     k = pi
-    Δ, v, info = @time excitation_spectrum_MPO(k, A, model, 1)
-    @show Δ
-    # @test Δ[1] ≈ 0.410479248463 atol = 1e-3
+    Δ1, v1, info = @time excitation_spectrum_MPO(k, A, model, 1)
+    Δ2, v2, info = @time excitation_spectrum(k, A, model, 1)
+    @test Δ1 ≈ Δ2
 end
 
 @testset "excitation energy" begin
@@ -83,7 +83,7 @@ end
                 infolder = "./data/$model/")
     
     k = pi
-    Δ, v, info = @time excitation_spectrum_MPO(k, A, model, 1)
-    @show Δ
-    # @test Δ[1] ≈ 0.410479248463 atol = 1e-3
+    Δ1, v1, info = @time excitation_spectrum_MPO(k, A, model, 1)
+    Δ2, v2, info = @time excitation_spectrum(k, A, model, 1)
+    @test Δ1 ≈ Δ2
 end

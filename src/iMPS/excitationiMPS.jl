@@ -126,17 +126,17 @@ end
 """
 function sum_series_k(k, A, L_n, R_n)
     χ = size(A, 1)
-    工_I = ein"ab,cd->acbd"(I(χ), I(χ))
+    二 = ein"ab,cd->acbd"(I(χ), I(χ))
     工 = ein"acb,dce->adbe"(A, conj(A))
     rl = ein"ab,cd->abcd"(R_n, L_n)
 
-    a2 = 工_I - exp(1.0im * k) * (工 - rl)
-    b2 = 工_I
+    a2 = 二 - exp(1.0im * k) * (工 - rl)
+    b2 = 二
     s2, info2 = linsolve(x->ein"adbe,becf->adcf"(a2,x), b2)
     @assert info2.converged == 1
 
-    a3 = 工_I - exp(1.0im *-k) * (工 - rl)
-    b3 = 工_I
+    a3 = 二 - exp(1.0im *-k) * (工 - rl)
+    b3 = 二
     s3, info3 = linsolve(x->ein"adbe,becf->adcf"(a3,x), b3)
     @assert info3.converged == 1
     return s2, s3
