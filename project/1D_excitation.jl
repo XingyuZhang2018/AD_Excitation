@@ -89,13 +89,36 @@ end
 
 @testset "1D TFIsing S=1/2 excitation with $atype" for atype in [Array]
     Random.seed!(100)
-    D,χ = 2,16
+    D,χ = 2,4
     s1 = []
-    for k in pi:pi/24:pi
+    for k in 0:pi/12:pi
         model = TFIsing(1/2,1.0)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
         Δ, = @time excitation_spectrum(k, A, model, 1)
+        push!(s1,real(Δ))
+    end
+    for i in 1:length(s1)
+        print("{")
+        for j in s1[i]
+            print("$j,")
+        end
+        print("},")
+    end
+    for i in 1:length(s1)
+        print("$(s1[i][1]),")
+    end
+end
+
+@testset "1D TFIsing S=1/2 excitation with $atype" for atype in [Array]
+    Random.seed!(100)
+    D,χ = 2,8
+    s1 = []
+    for k in 0:pi/12:pi
+        model = TFIsing(1/2,1.0)
+        A = init_mps(D = D, χ = χ,
+                     infolder = "./data/$model/")
+        Δ, = @time excitation_spectrum_MPO(k, A, model, 1)
         push!(s1,real(Δ))
     end
     for i in 1:length(s1)

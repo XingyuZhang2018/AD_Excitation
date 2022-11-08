@@ -95,8 +95,8 @@ end
      └───A*───┴─             f ────┴──── h  
     ```
 """
-function einLB(k, L, B, A, M)
-    LB, info = linsolve(LB->LB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(LB,A,M,conj(A)), ein"((adf,abc),dgeb),fgh -> ceh"(L,B,M,conj(A)))
+function einLB(k, L, B, A, E, M, Ǝ)
+    LB, info = linsolve(LB->LB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(LB,A,M,conj(A)) + exp(1.0im * k) * ein"abc,abc->"(LB,Ǝ)[]*E, ein"((adf,abc),dgeb),fgh -> ceh"(L,B,M,conj(A)))
     @assert info.converged == 1
     return LB
 end
@@ -110,8 +110,8 @@ end
     ─┴───A*──┘               f ────┴──── h 
     ```
 """
-function einRB(k, R, B, A, M)
-    RB, info = linsolve(RB->RB - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(A,RB,M,conj(A)), ein"((abc,ceh),dgeb),fgh -> adf"(B,R,M,conj(A)))
+function einRB(k, R, B, A, E, M, Ǝ)
+    RB, info = linsolve(RB->RB - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(A,RB,M,conj(A)) + exp(1.0im *-k) * ein"abc,abc->"(E,RB)[]*Ǝ, ein"((abc,ceh),dgeb),fgh -> adf"(B,R,M,conj(A)))
     @assert info.converged == 1
     return RB
 end
@@ -168,8 +168,8 @@ function H_eff(k, A, Bu, E, M, Ǝ)
     HB  = eindB(Bu, E, M, Ǝ)
  
     # 2. B and dB on different sites of M
-    HB += eindB(A, einLB(k, E, Bu, A, M), M, Ǝ) * exp(1.0im * k) +
-          eindB(A, E, M, einRB(k, Ǝ, Bu, A, M)) * exp(1.0im *-k)
+    HB += eindB(A, einLB(k, E, Bu, A, E, M, Ǝ), M, Ǝ) * exp(1.0im * k) +
+          eindB(A, E, M, einRB(k, Ǝ, Bu, A, E, M, Ǝ)) * exp(1.0im *-k)
 
     return HB
 end
