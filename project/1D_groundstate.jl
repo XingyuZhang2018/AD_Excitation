@@ -12,7 +12,7 @@ using Zygote
     Random.seed!(100)
     D = 2
     model = Heisenberg(1/2)
-    for χ in 2 .^ (2:2)
+    for χ in 2 .^ (4:4)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
@@ -73,4 +73,36 @@ end
                             opiter = 1000)
         @show e 
     end
+end
+
+@testset "1D TFIsing S=1/2 at critical point ground energy with vumps" begin
+    Random.seed!(100)
+    model = TFIsing(0.5, 1.0)
+    energy = [] 
+    for χ in 2 .^ (7:7)
+        @show χ
+        e = vumps(model; χ=χ, iters = 100, show_every = 1, tol = 1e-8)
+        push!(energy, e)
+    end
+    print("{")
+    for i in 1:7
+        print("{$(2^i),$(real(energy[i]))},")
+    end
+    print("}")
+end
+
+@testset "1D Heisenberg S=1/2 ground energy with vumps" begin
+    Random.seed!(100)
+    model = Heisenberg(1/2)
+    energy = [] 
+    for χ in 2 .^ (1:7)
+        @show χ
+        e = vumps(model; χ=χ, iters = 100, show_every = 1, tol = 1e-8)
+        push!(energy, e)
+    end
+    print("{")
+    for i in 1:6
+        print("{$(2^i),$(real(energy[i]))},")
+    end
+    print("}")
 end

@@ -96,6 +96,18 @@ function env_Ǝ(Au, Ad, M, Ǝ = _arraytype(Au)(rand(eltype(Au), size(Au,3), size
     return env_E(Au, Ad, M, Ǝ; kwargs...)
 end
 
+function ACenv(AC, E, M, Ǝ; kwargs...)
+    λs, ACs, info = eigsolve(AC -> ein"((abcij,adfij),dgebij),cehij->fghij"(AC, E, M, Ǝ), AC, 1, :SR; ishermitian = false, kwargs...)
+    info.converged == 0 && @warn "ACenv not converged"
+    return λs[1], ACs[1]
+end
+
+function Cenv(C, E, Ǝ; kwargs...)
+    λs, Cs, info = eigsolve(C -> ein"(abij,acdij),bceij->deij"(C, E, Ǝ), C, 1, :SR; ishermitian = false, kwargs...)
+    info.converged == 0 && @warn "Cenv not converged"
+    return λs[1], Cs[1]
+end
+
 function overlap(Au, Ad)
     _, FLu_n = norm_L(Au, conj(Au))
     _, FRu_n = norm_R(Au, conj(Au))

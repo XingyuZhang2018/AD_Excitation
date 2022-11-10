@@ -71,8 +71,8 @@ return the heisenberg hamiltonian for the `model` as a two-site operator.
 function hamiltonian(model::Heisenberg)
     S, Jx, Jy, Jz = model.S, model.Jx, model.Jy, model.Jz
     Sx, Sy, Sz = const_Sx(S), const_Sy(S), const_Sz(S)
-    Jx * ein"ij,kl -> ijkl"(Sx, Sx) +
-    Jy * ein"ij,kl -> ijkl"(Sy, Sy) +
+    Jx * ein"ij,kl -> ijkl"(Sx, Sx) -
+    Jy * ein"ij,kl -> ijkl"(Sy, Sy) -
     Jz * ein"ij,kl -> ijkl"(Sz, Sz)
 end
 
