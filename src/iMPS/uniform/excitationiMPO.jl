@@ -163,7 +163,7 @@ eindB(A, E, M, Ǝ) = ein"((adf,abc),dgeb),ceh->fgh"(E,A,M,Ǝ)
     ```
 
 """
-function H_eff(k, A, Bu, E, M, Ǝ)
+function H_MPO_eff(k, A, Bu, E, M, Ǝ)
     # 1. B and dB on the same site of M
     HB  = eindB(Bu, E, M, Ǝ)
  
@@ -203,7 +203,7 @@ function excitation_spectrum_MPO(k, A, model, n::Int = 1;
     
     function f(X)
         Bu = ein"((ba,bcd),de),ef->acf"(inv_sq_Ln, VL, X, inv_sq_Rn)
-        HB = H_eff(k, A, Bu, E, M, Ǝ)
+        HB = H_MPO_eff(k, A, Bu, E, M, Ǝ)
         HB = ein"((ba,bcd),acf),de->fe"(inv_sq_Ln,HB,conj(VL),inv_sq_Rn)
         return HB
     end

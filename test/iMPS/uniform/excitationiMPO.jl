@@ -1,5 +1,5 @@
 using AD_Excitation
-using AD_Excitation: envir_MPO, initial_VL,initial_excitation,H_eff,energy_gs_MPO,energy_gs
+using AD_Excitation: envir_MPO, initial_VL,initial_excitation,H_MPO_eff,energy_gs_MPO, energy_gs, env_norm
 using LinearAlgebra
 using OMEinsum
 using Random
@@ -55,7 +55,7 @@ end
 
     H_mn = zeros(ComplexF64, l,l)
     for i in 1:length(Bs), j in 1:length(Bs)
-        H_mn[i,j] = ein"abc,abc->"(H_eff(k, A, Bs[i], E, M, Ǝ), conj(Bs[j]))[]
+        H_mn[i,j] = ein"abc,abc->"(H_MPO_eff(k, A, Bs[i], E, M, Ǝ), conj(Bs[j]))[]
     end
     @test H_mn ≈ H_mn'
 end
@@ -72,6 +72,7 @@ end
     Δ1, v1, info = @time excitation_spectrum_MPO(k, A, model, 1)
     Δ2, v2, info = @time excitation_spectrum(k, A, model, 1)
     @test Δ1 ≈ Δ2
+    @show Δ1 Δ2
 end
 
 @testset "excitation energy" begin

@@ -106,3 +106,19 @@ end
     end
     print("}")
 end
+
+@testset "1D Heisenberg S=1 ground energy with vumps" begin
+    Random.seed!(100)
+    model = Heisenberg(1.0)
+    energy = [] 
+    for χ in 2 .^ (1:7)
+        @show χ
+        e = vumps(model; χ=χ, iters = 100, show_every = 1, tol = 1e-8)
+        push!(energy, e)
+    end
+    # print("{")
+    # for i in 1:6
+    #     print("{$(2^i),$(real(energy[i]))},")
+    # end
+    # print("}")
+end

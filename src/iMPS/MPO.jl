@@ -22,8 +22,8 @@ function MPO(model::Heisenberg)
     M[3,:,1,:] .= Jy * Sy
     M[4,:,1,:] .= Jz * Sz
     M[5,:,2,:] .= Sx
-    M[5,:,3,:] .= -Sy
-    M[5,:,4,:] .= -Sz
+    M[5,:,3,:] .= Sy
+    M[5,:,4,:] .= Sz
     M[5,:,5,:] .= I(d)
     return M
 end

@@ -132,3 +132,19 @@ end
         print("$(s1[i][1]),")
     end
 end
+
+@testset "excitation_spectrum_canonical_MPO" begin
+    model = Heisenberg(1.0)
+    
+    k = pi
+    s1 = []
+    for χ in 2 .^ (1:7)
+        @show χ
+        Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, k, 1;
+                                                             χ=χ)
+        push!(s1,real(Δ))
+    end
+    for i in 1:length(s1)
+        print("$(s1[i][1]),")
+    end
+end
