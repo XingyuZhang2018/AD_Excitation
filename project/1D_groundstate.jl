@@ -124,12 +124,12 @@ end
 end
 
 @testset "2D Heisenberg S=1/2 cylinder ground energy with vumps" begin
-    Random.seed!(100)
-    model = Heisenberg(1/2,6)
+    Random.seed!(1000)
+    model = Heisenberg(1/2,8)
     energy = [] 
-    for χ in 2 .^ (8:8)
+    for χ in 2 .^ (9:9)
         @show χ
-        e = vumps(model; χ=χ, iters = 100, show_every = 1, tol = 1e-8)
+        e = @time vumps(model; χ=χ, iters = 100, show_every = 1, tol = 1e-8, atype = CuArray)
         push!(energy, e)
     end
     print("{")
