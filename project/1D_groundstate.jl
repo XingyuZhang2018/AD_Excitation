@@ -95,13 +95,13 @@ end
     Random.seed!(100)
     model = Heisenberg(1/2)
     energy = [] 
-    for χ in 2 .^ (1:7)
+    for χ in 2 .^ (4:4)
         @show χ
         e = vumps(model; χ=χ, iters = 100, show_every = 1, tol = 1e-8)
         push!(energy, e)
     end
     print("{")
-    for i in 1:6
+    for i in 1:1
         print("{$(2^i),$(real(energy[i]))},")
     end
     print("}")
@@ -121,4 +121,20 @@ end
     #     print("{$(2^i),$(real(energy[i]))},")
     # end
     # print("}")
+end
+
+@testset "2D Heisenberg S=1/2 cylinder ground energy with vumps" begin
+    Random.seed!(100)
+    model = Heisenberg(1/2,6)
+    energy = [] 
+    for χ in 2 .^ (8:8)
+        @show χ
+        e = vumps(model; χ=χ, iters = 100, show_every = 1, tol = 1e-8)
+        push!(energy, e)
+    end
+    print("{")
+    for i in 1:1
+        print("{$(2^i),$(real(energy[i]))},")
+    end
+    print("}")
 end

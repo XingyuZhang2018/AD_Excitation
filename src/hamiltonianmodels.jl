@@ -52,16 +52,17 @@ function hamiltonian end
     Heisenberg(Jz::T,Jx::T,Jy::T) where {T<:Real}
 
 return a struct representing the spin-`S` heisenberg model with magnetisation fields
-`Jz`, `Jx` and `Jy`
+`Jz`, `Jx` and `Jy`, N is the `N-th` nearest neighbour interaction
 """
 struct Heisenberg{T<:Real} <: HamiltonianModel
      S::T
+     N::Int
     Jx::T
     Jy::T
     Jz::T
 end
-Heisenberg() = Heisenberg(1/2, 1.0, 1.0, 1.0)
-Heisenberg(S) = Heisenberg(S, 1.0, 1.0, 1.0)
+Heisenberg() = Heisenberg(1/2, 1, 1.0, 1.0, 1.0)
+Heisenberg(S, N) = Heisenberg(S, N, 1.0, 1.0, 1.0)
 
 """
     hamiltonian(model::Heisenberg)
