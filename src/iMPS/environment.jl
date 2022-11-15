@@ -51,7 +51,7 @@ of `Au - Ad` contracted Aung the physical dimension.
                          d──────┴──────e
 ```
 """
-function norm_R(Au, Ad, R = _arraytype(Au)(randn(eltype(Au), size(Au,3), size(Ad,3))); kwargs...)
+function norm_R(Au, Ad, R = _arraytype(Au)(rand(eltype(Au), size(Au,3), size(Ad,3))); kwargs...)
     Au = permutedims(Au,(3,2,1))
     Ad = permutedims(Ad,(3,2,1))
     return norm_L(Au, Ad, R; kwargs...)

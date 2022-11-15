@@ -43,9 +43,9 @@ function envir_MPO(AL, AR, M)
         for j in i+1:W
             YL += ein"(abc,db),(ae,edf)->cf"(AL,M[j,:,i,:],E[:,j,:],conj(AL))
         end
-        if M[i,:,i,:] == I(d)
-            bL = YL - Array(ein"ab,ab->"(YL,ɔ))[] * Iχ
-            E[:,i,:], infoE = linsolve(E->E - ein"abc,(ad,dbe)->ce"(AL,E,conj(AL)) + ein"ab,ab->"(E, ɔ)[] * Iχ, bL)
+        if i == 1 # if M[i,:,i,:] == I(d)
+            bL = YL - ein"(ab,ab),cd->cd"(YL,ɔ,Iχ)
+            E[:,i,:], infoE = linsolve(E->E - ein"abc,(ad,dbe)->ce"(AL,E,conj(AL)) + ein"(ab,ab),cd->cd"(E, ɔ, Iχ), bL)
             @assert infoE.converged == 1
         else
             E[:,i,:] = YL
@@ -58,9 +58,9 @@ function envir_MPO(AL, AR, M)
         for j in 1:i-1
             YR += ein"((abc,db),cf),edf->ae"(AR,M[i,:,j,:],Ǝ[:,j,:],conj(AR))
         end
-        if M[i,:,i,:] == I(d)
-            bR = YR - Array(ein"ab,ab->"(c,YR))[] * Iχ
-            Ǝ[:,i,:], infoƎ = linsolve(Ǝ->Ǝ - ein"(abc,ce),dbe->ad"(AR,Ǝ,conj(AR)) + ein"ab,ab->"(c, Ǝ)[] * Iχ, bR)
+        if i == W # if M[i,:,i,:] == I(d)
+            bR = YR - ein"(ab,ab),cd->cd"(c,YR,Iχ)
+            Ǝ[:,i,:], infoƎ = linsolve(Ǝ->Ǝ - ein"(abc,ce),dbe->ad"(AR,Ǝ,conj(AR)) + ein"(ab,ab),cd->cd"(c, Ǝ, Iχ), bR)
             @assert infoƎ.converged == 1
         else
             Ǝ[:,i,:] = YR
