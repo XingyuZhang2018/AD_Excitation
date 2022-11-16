@@ -2,7 +2,7 @@ export excitation_spectrum_canonical_MPO
 
 function initial_canonical_VL(AL)
     χ,D,_ = size(AL)
-    VL = randn(χ, D, χ*(D-1))
+    VL = _arraytype(AL)(randn(χ, D, χ*(D-1)))
     λL = ein"abc,abd -> cd"(VL,conj(AL))
     VL -= ein"abc,dc -> abd"(AL,λL)
     Q, _ = qrpos(reshape(VL, χ*D, χ*(D-1)))
@@ -105,15 +105,16 @@ find at least `n` smallest excitation gaps
 """
 function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
                                            χ::Int = 8,
+                                           atype = Array,
                                            infolder = "./data/", outfolder = "./data/")
      infolder = joinpath( infolder, "$model")
     outfolder = joinpath(outfolder, "$model")
 
-    M = MPO(model)
+    M = atype(MPO(model))
     D = size(M, 2)
     W = size(M, 1)
     AL, C, AR = init_canonical_mps(;infolder = infolder, 
-                                    atype = _arraytype(M),        
+                                    atype = atype,        
                                     D = D, 
                                     χ = χ)
     AC = ALCtoAC(AL, C)
@@ -128,9 +129,9 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
 
     VL= initial_canonical_VL(AL)
 
-    X = zeros(ComplexF64, χ*(D-1), χ)
-    # X = rand(ComplexF64, χ, D, χ)
-    X[1] = 1.0
+    # X = atype(zeros(ComplexF64, χ*(D-1), χ))
+    X = atype(rand(ComplexF64, χ*(D-1), χ))
+    # X[1] = 1.0
     # X /= sqrt(ein"ab,ab->"(X,conj(X))[])
     function f(X)
         Bu = ein"abc,cd->abd"(VL, X)
@@ -140,6 +141,6 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
     end
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = false, maxiter = 100)
     # @assert info.converged == 1
-    Δ .-= ein"(((adf,abc),dgeb),ceh),fgh -> "(E,AC,M,Ǝ,conj(AC))[] 
+    Δ .-= Array(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,AC,M,Ǝ,conj(AC)))[] 
     return Δ, Y, info
 end
