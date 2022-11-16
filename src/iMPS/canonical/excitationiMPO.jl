@@ -1,3 +1,4 @@
+using TeneT: leftenv, rightenv
 export excitation_spectrum_canonical_MPO
 
 function initial_canonical_VL(AL)
@@ -17,7 +18,6 @@ function energy_gs_canonical_MPO(M, AC, C, E, Ǝ)
     return e-n
 end
 
-
 """
     ```
      ┌───B────┬─             a ────┬──── c 
@@ -27,8 +27,8 @@ end
      └───AL*──┴─             f ────┴──── h  
     ```
 """
-function einEB(k, B, AL, AR, E, M, Ǝ)
-    EB, info = linsolve(EB->EB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(EB,AR,M,conj(AL)) , ein"((adf,abc),dgeb),fgh -> ceh"(E,B,M,conj(AL)))
+function einEB(k, B, AL, AR, E, M, RLE, RLƎ)
+    EB, info = linsolve(EB->EB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(EB,AR,M,conj(AL)) + exp(1.0im * k) * ein"abc,abc,def->def"(EB,RLƎ,RLE), ein"((adf,abc),dgeb),fgh -> ceh"(E,B,M,conj(AL)))
     @assert info.converged == 1
     return EB
 end
@@ -42,8 +42,8 @@ end
     ─┴───AR*─┘               f ────┴──── h 
     ```
 """
-function einBƎ(k, B, AL, AR, E, M, Ǝ)
-    BƎ, info = linsolve(BƎ->BƎ - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(AL,BƎ,M,conj(AR)) , ein"((abc,ceh),dgeb),fgh -> adf"(B,Ǝ,M,conj(AR)))
+function einBƎ(k, B, AL, AR, Ǝ, M, LRE, LRƎ)
+    BƎ, info = linsolve(BƎ->BƎ - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(AL,BƎ,M,conj(AR)) + exp(1.0im *-k) * ein"abc,abc,def->def"(LRE,BƎ,LRƎ), ein"((abc,ceh),dgeb),fgh -> adf"(B,Ǝ,M,conj(AR)))
     @assert info.converged == 1
     return BƎ
 end
@@ -84,14 +84,14 @@ end
     ```
 
 """
-function H_canonical_eff(k, AC, AL, AR, Bu, E, M, Ǝ)
+function H_canonical_eff(k, AL, AR, Bu, E, M, Ǝ, RLE, RLƎ, LRE, LRƎ)
     # 1. B and dB on the same site of M
     HB  = eindB(Bu, E, M, Ǝ) 
     # HB  = eindB(Bu, E, M, Ǝ) - ein"(((adf,abc),dgeb),ceh),fgh -> "(E,AC,M,Ǝ,conj(AC))[]  * Bu
 
     # # 2. B and dB on different sites of M
-    EB = einEB(k, Bu, AL, AR, E, M, Ǝ)
-    BƎ = einBƎ(k, Bu, AL, AR, E, M, Ǝ)
+    EB =  einEB(k, Bu, AL, AR, E, M, RLE, RLƎ)
+    BƎ = einBƎ(k, Bu, AL, AR, Ǝ, M, LRE, LRƎ)
     HB += eindB(AR, EB, M, Ǝ) * exp(1.0im * k) +
           eindB(AL, E, M, BƎ) * exp(1.0im *-k)
           
@@ -119,13 +119,18 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
                                     χ = χ)
     AC = ALCtoAC(AL, C)
     E, Ǝ = envir_MPO(AL, AR, M)
+    # RLE, RLƎ = envir_MPO(AR, AL, M)
+    # LRE, LRƎ = envir_MPO(AL, AR, M)
+    F = atype == Array ? rand(ComplexF64, χ, W, χ, 1, 1) : CUDA.rand(ComplexF64, χ, W, χ, 1, 1)
+    Mr = reshape(M, W,D,W,D,1,1)
+    _, RLE = leftenv(AR, conj(AL), Mr, F)
+    _, RLƎ =rightenv(AR, conj(AL), Mr, F)
+    _, LRE = leftenv(AL, conj(AR), Mr, F)
+    _, LRƎ =rightenv(AL, conj(AR), Mr, F)
 
-    AL = reshape(AL, χ,D,χ)
-    AR = reshape(AR, χ,D,χ)
-    AC = reshape(AC, χ,D,χ)
-     C = reshape( C, χ,  χ)
-    E = reshape(E, χ,W,χ)
-    Ǝ = reshape(Ǝ, χ,W,χ)
+    AL, AR, AC = map(x->reshape(x, χ,D,χ), (AL, AR, AC ))
+    C = reshape(C, χ, χ)
+    E, Ǝ, RLE, RLƎ, LRE, LRƎ = map(x->reshape(x, χ,W,χ), (E, Ǝ, RLE, RLƎ, LRE, LRƎ))
 
     VL= initial_canonical_VL(AL)
 
@@ -135,7 +140,7 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
     # X /= sqrt(ein"ab,ab->"(X,conj(X))[])
     function f(X)
         Bu = ein"abc,cd->abd"(VL, X)
-        HB = H_canonical_eff(k, AC, AL, AR, Bu, E, M, Ǝ)
+        HB = H_canonical_eff(k, AL, AR, Bu, E, M, Ǝ, RLE, RLƎ, LRE, LRƎ)
         HB = ein"abc,abd->dc"(HB,conj(VL))
         return HB
     end

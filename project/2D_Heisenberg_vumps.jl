@@ -4,9 +4,9 @@ using Random
 CUDA.allowscalar(false)
 
 Random.seed!(100)
-model = Heisenberg(0.5,4)
+model = Heisenberg(0.5,2,1.0,-1.0,-1.0)
 energy = [] 
-for χ in 2 .^ (8:8)
+for χ in 2 .^ (3:3)
     @show χ
     e = @time vumps(model; χ=χ, iters = 100, show_every = 1, tol = 1e-8, atype = Array)
     push!(energy, e)

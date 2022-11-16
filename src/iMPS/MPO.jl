@@ -20,8 +20,8 @@ function MPO(model::Heisenberg)
         M = zeros(ComplexF64, 5, d, 5, d)
         M[1,:,1,:] .= I(d)
         M[2,:,1,:] .= Jx * Sx
-        M[3,:,1,:] .= -Jy * Sy
-        M[4,:,1,:] .= -Jz * Sz
+        M[3,:,1,:] .= Jy * Sy
+        M[4,:,1,:] .= Jz * Sz
         M[5,:,2,:] .= Sx
         M[5,:,3,:] .= Sy
         M[5,:,4,:] .= Sz
@@ -29,11 +29,11 @@ function MPO(model::Heisenberg)
     else
         M = zeros(ComplexF64, 5+3*N, d, 5+3*N, d)
         M[2,:,1,:] .= Jx * Sx
-        M[2+N,:,1,:] .= -Jy * Sy
-        M[2+2*N,:,1,:] .= -Jz * Sz
+        M[2+N,:,1,:] .= Jy * Sy
+        M[2+2*N,:,1,:] .= Jz * Sz
         M[2+3*N,:,1,:] .= Jx * Sx
-        M[3+3*N,:,1,:] .= -Jy * Sy
-        M[4+3*N,:,1,:] .= -Jz * Sz
+        M[3+3*N,:,1,:] .= Jy * Sy
+        M[4+3*N,:,1,:] .= Jz * Sz
         M[5+3*N,:,1+N,:] .= Sx
         M[5+3*N,:,1+2*N,:] .= Sy
         M[5+3*N,:,1+3*N,:] .= Sz
