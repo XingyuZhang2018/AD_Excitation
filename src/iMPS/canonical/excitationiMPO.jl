@@ -18,6 +18,53 @@ function energy_gs_canonical_MPO(M, AC, C, E, Ǝ)
     return e-n
 end
 
+function envir_MPO_UD(U, D, M)
+    atype = _arraytype(M)
+    χ,d,_ = size(U)
+    W     = size(M, 1)
+
+    U = reshape(U, χ,d,χ)
+    D = reshape(D, χ,d,χ)
+
+    E = atype == Array ? zeros(ComplexF64, χ,W,χ) : CUDA.zeros(ComplexF64, χ,W,χ)
+    Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ) : CUDA.zeros(ComplexF64, χ,W,χ)
+    _, ɔ = norm_R(U, conj(D))
+    _, c = norm_L(U, conj(D))
+    # @show λ1 λ2 ein"ab,ab->"(c,ɔ)
+
+    E[:,W,:] = c
+    for i in W-1:-1:1
+        YL = atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
+        for j in i+1:W
+            YL += ein"(abc,db),(ae,edf)->cf"(U,M[j,:,i,:],E[:,j,:],conj(D))
+        end
+        if i == 1 #if M[i,:,i,:] == I(d)
+            bL = YL - ein"(ab,ab),cd->cd"(YL,ɔ,c) 
+            E[:,i,:], infoE = linsolve(E->E - ein"abc,(ad,dbe)->ce"(U,E,conj(D)) + ein"(ab,ab),cd->cd"(E,ɔ,c), bL)
+            @assert infoE.converged == 1
+        else
+            E[:,i,:] = YL
+        end
+    end
+
+    Ǝ[:,1,:] = ɔ
+    for i in 2:W
+        YR = atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
+        for j in 1:i-1
+            YR += ein"((abc,db),cf),edf->ae"(U,M[i,:,j,:],Ǝ[:,j,:],conj(D))
+        end
+        if i == W # if M[i,:,i,:] == I(d)
+            bR = YR - ein"(ab,ab),cd->cd"(c,YR,ɔ)
+            Ǝ[:,i,:], infoƎ = linsolve(Ǝ->Ǝ - ein"(abc,ce),dbe->ad"(U,Ǝ,conj(D)) + ein"(ab,ab),cd->cd"(c,Ǝ,ɔ), bR)
+            @assert infoƎ.converged == 1
+        else
+            Ǝ[:,i,:] = YR
+        end
+    end
+
+    return E, Ǝ
+end
+
 """
     ```
      ┌───B────┬─             a ────┬──── c 
@@ -28,7 +75,7 @@ end
     ```
 """
 function einEB(k, B, AL, AR, E, M, RLE, RLƎ)
-    EB, info = linsolve(EB->EB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(EB,AR,M,conj(AL)) + exp(1.0im * k) * ein"abc,abc,def->def"(EB,RLƎ,RLE), ein"((adf,abc),dgeb),fgh -> ceh"(E,B,M,conj(AL)))
+    EB, info = linsolve(EB->EB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(EB,AR,M,conj(AL)) + exp(1.0im * k) * ein"(abc,abc),def->def"(EB,RLƎ,RLE), ein"((adf,abc),dgeb),fgh -> ceh"(E,B,M,conj(AL)))
     @assert info.converged == 1
     return EB
 end
@@ -43,7 +90,7 @@ end
     ```
 """
 function einBƎ(k, B, AL, AR, Ǝ, M, LRE, LRƎ)
-    BƎ, info = linsolve(BƎ->BƎ - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(AL,BƎ,M,conj(AR)) + exp(1.0im *-k) * ein"abc,abc,def->def"(LRE,BƎ,LRƎ), ein"((abc,ceh),dgeb),fgh -> adf"(B,Ǝ,M,conj(AR)))
+    BƎ, info = linsolve(BƎ->BƎ - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(AL,BƎ,M,conj(AR)) + exp(1.0im *-k) * ein"(abc,abc),def->def"(LRE,BƎ,LRƎ), ein"((abc,ceh),dgeb),fgh -> adf"(B,Ǝ,M,conj(AR)))
     @assert info.converged == 1
     return BƎ
 end
@@ -119,24 +166,19 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
                                     χ = χ)
     AC = ALCtoAC(AL, C)
     E, Ǝ = envir_MPO(AL, AR, M)
-    # RLE, RLƎ = envir_MPO(AR, AL, M)
-    # LRE, LRƎ = envir_MPO(AL, AR, M)
-    F = atype == Array ? rand(ComplexF64, χ, W, χ, 1, 1) : CUDA.rand(ComplexF64, χ, W, χ, 1, 1)
-    Mr = reshape(M, W,D,W,D,1,1)
-    _, RLE = leftenv(AR, conj(AL), Mr, F)
-    _, RLƎ =rightenv(AR, conj(AL), Mr, F)
-    _, LRE = leftenv(AL, conj(AR), Mr, F)
-    _, LRƎ =rightenv(AL, conj(AR), Mr, F)
+    RLE, RLƎ = envir_MPO_UD(AR, AL, M)
+    LRE, LRƎ = envir_MPO_UD(AL, AR, M)
 
     AL, AR, AC = map(x->reshape(x, χ,D,χ), (AL, AR, AC ))
     C = reshape(C, χ, χ)
-    E, Ǝ, RLE, RLƎ, LRE, LRƎ = map(x->reshape(x, χ,W,χ), (E, Ǝ, RLE, RLƎ, LRE, LRƎ))
+    E, Ǝ = map(x->reshape(x, χ,W,χ), (E, Ǝ))
 
     VL= initial_canonical_VL(AL)
 
-    # X = atype(zeros(ComplexF64, χ*(D-1), χ))
-    X = atype(rand(ComplexF64, χ*(D-1), χ))
-    # X[1] = 1.0
+    X = zeros(ComplexF64, χ*(D-1), χ)
+    # X = atype(randn(ComplexF64, χ*(D-1), χ))
+    X[1] = 1.0
+    X = atype(X)
     # X /= sqrt(ein"ab,ab->"(X,conj(X))[])
     function f(X)
         Bu = ein"abc,cd->abd"(VL, X)

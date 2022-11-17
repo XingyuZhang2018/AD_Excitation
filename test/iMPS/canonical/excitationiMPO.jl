@@ -1,5 +1,5 @@
 using AD_Excitation
-using AD_Excitation: init_canonical_mps, initial_canonical_VL, H_canonical_eff
+using AD_Excitation: init_canonical_mps, initial_canonical_VL, H_canonical_eff, envir_MPO_UD
 using OMEinsum
 using Random
 using Test
@@ -24,31 +24,33 @@ end
                                     atype = Array,        
                                     D = D, 
                                     χ = χ)
+    
     M = MPO(model)
-    W = size(M, 1)
-    l  = χ^2*(D-1)
-    k  = pi
-    AC = ALCtoAC(AL, C)
-    E, Ǝ = envir_MPO(AL, AR, M)
+    envir_MPO_UD(AL, AR, M)
+    # W = size(M, 1)
+    # l  = χ^2*(D-1)
+    # k  = pi
+    # AC = ALCtoAC(AL, C)
+    # E, Ǝ = envir_MPO(AL, AR, M)
 
-    AL = reshape(AL, χ,D,χ)
-    AR = reshape(AR, χ,D,χ)
-    AC = reshape(AC, χ,D,χ)
-     C = reshape( C, χ,  χ)
-     E = reshape(E, χ,W,χ)
-     Ǝ = reshape(Ǝ, χ,W,χ)
+    # AL = reshape(AL, χ,D,χ)
+    # AR = reshape(AR, χ,D,χ)
+    # AC = reshape(AC, χ,D,χ)
+    #  C = reshape( C, χ,  χ)
+    #  E = reshape(E, χ,W,χ)
+    #  Ǝ = reshape(Ǝ, χ,W,χ)
 
-    VL = initial_canonical_VL(AL)
-    Bs = []
-    for i in 1:(D-1)*χ^2
-        X = zeros(ComplexF64, χ*(D-1), χ)
-        X[i] = 1.0
-        X /= sqrt(ein"ab,ab->"(X,conj(X))[])
-        B = ein"abc,cd->abd"(VL, X)
-        push!(Bs, B)
-    end
+    # VL = initial_canonical_VL(AL)
+    # Bs = []
+    # for i in 1:(D-1)*χ^2
+    #     X = zeros(ComplexF64, χ*(D-1), χ)
+    #     X[i] = 1.0
+    #     X /= sqrt(ein"ab,ab->"(X,conj(X))[])
+    #     B = ein"abc,cd->abd"(VL, X)
+    #     push!(Bs, B)
+    # end
 
-    @show ein"abc,abc->"(H_canonical_eff(k, AC, AL, AR, Bs[1], E, M, Ǝ), conj(Bs[1]))[]
+    # @show ein"abc,abc->"(H_canonical_eff(k, AC, AL, AR, Bs[1], E, M, Ǝ), conj(Bs[1]))[]
 
     # H_mn = zeros(ComplexF64, l,l)
     # for i in 1:length(Bs), j in 1:length(Bs)
