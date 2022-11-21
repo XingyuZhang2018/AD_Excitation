@@ -75,8 +75,8 @@ end
      └───AL*──┴─             f ────┴──── h  
     ```
 """
-function einEB(k, B, AL, AR, E, M, RLE, RLƎ, λRL)
-    EB, info = linsolve(EB->EB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(EB,AR,M,conj(AL)) ./ λRL + exp(1.0im * k) * ein"(abc,abc),def->def"(EB,RLƎ,RLE), ein"((adf,abc),dgeb),fgh -> ceh"(E,B,M,conj(AL)))
+function einEB(k, B, AL, AR, E, M)
+    EB, info = linsolve(EB->EB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(EB,AR,M,conj(AL)), ein"((adf,abc),dgeb),fgh -> ceh"(E,B,M,conj(AL)))
     @assert info.converged == 1
     return EB
 end
@@ -90,8 +90,8 @@ end
     ─┴───AR*─┘               f ────┴──── h 
     ```
 """
-function einBƎ(k, B, AL, AR, Ǝ, M, LRE, LRƎ, λLR)
-    BƎ, info = linsolve(BƎ->BƎ - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(AL,BƎ,M,conj(AR)) ./ λLR + exp(1.0im *-k) * ein"(abc,abc),def->def"(LRE,BƎ,LRƎ), ein"((abc,ceh),dgeb),fgh -> adf"(B,Ǝ,M,conj(AR)))
+function einBƎ(k, B, AL, AR, Ǝ, M)
+    BƎ, info = linsolve(BƎ->BƎ - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(AL,BƎ,M,conj(AR)), ein"((abc,ceh),dgeb),fgh -> adf"(B,Ǝ,M,conj(AR)))
     @assert info.converged == 1
     return BƎ
 end
@@ -132,14 +132,14 @@ end
     ```
 
 """
-function H_canonical_eff(k, AL, AR, Bu, E, M, Ǝ, RLE, RLƎ, LRE, LRƎ, λRL, λLR)
+function H_canonical_eff(k, AL, AR, Bu, E, M, Ǝ)
     # 1. B and dB on the same site of M
     HB  = eindB(Bu, E, M, Ǝ) 
     # HB  = eindB(Bu, E, M, Ǝ) - ein"(((adf,abc),dgeb),ceh),fgh -> "(E,AC,M,Ǝ,conj(AC))[]  * Bu
 
     # # 2. B and dB on different sites of M
-    EB = einEB(k, Bu, AL, AR, E, M, RLE, RLƎ, λRL)
-    BƎ = einBƎ(k, Bu, AL, AR, Ǝ, M, LRE, LRƎ, λLR)
+    EB = einEB(k, Bu, AL, AR, E, M)
+    BƎ = einBƎ(k, Bu, AL, AR, Ǝ, M)
     HB += eindB(AR, EB, M, Ǝ) * exp(1.0im * k) +
           eindB(AL, E, M, BƎ) * exp(1.0im *-k)
           
@@ -167,8 +167,6 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
                                     χ = χ)
     AC = ALCtoAC(AL, C)
     E, Ǝ = envir_MPO(AL, AR, M)
-    RLE, RLƎ, λRL = envir_MPO_UD(AR, AL, M)
-    LRE, LRƎ, λLR = envir_MPO_UD(AL, AR, M)
 
     AL, AR, AC = map(x->reshape(x, χ,D,χ), (AL, AR, AC ))
     C = reshape(C, χ, χ)
@@ -183,7 +181,7 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
     # X /= sqrt(ein"ab,ab->"(X,conj(X))[])
     function f(X)
         Bu = ein"abc,cd->abd"(VL, X)
-        HB = H_canonical_eff(k, AL, AR, Bu, E, M, Ǝ, RLE, RLƎ, LRE, LRƎ, λRL, λLR)
+        HB = H_canonical_eff(k, AL, AR, Bu, E, M, Ǝ)
         HB = ein"abc,abd->dc"(HB,conj(VL))
         return HB
     end
