@@ -35,6 +35,8 @@ function envir_MPO(AL, AR, M)
     Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ) : CUDA.zeros(ComplexF64, χ,W,χ)
     _, ɔ = norm_R(AL, conj(AL))
     _, c = norm_L(AR, conj(AR))
+    ɔ ./= tr(ɔ)
+    c ./= tr(c)
 
     Iχ = atype(I(χ))
     E[:,W,:] = Iχ

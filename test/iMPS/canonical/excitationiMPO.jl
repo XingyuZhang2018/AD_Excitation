@@ -64,8 +64,6 @@ end
     χ = 16
 
     k = pi
-    Δ, Y, info = excitation_spectrum_canonical_MPO(model, k, 1;
-                                                   χ=χ)
+    Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, k, 1; χ=χ)
     @show Δ 
 end
-
