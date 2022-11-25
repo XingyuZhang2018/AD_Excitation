@@ -1,5 +1,5 @@
 using AD_Excitation
-using AD_Excitation:norm_L,norm_R,env_E,env_Ǝ
+using AD_Excitation:norm_L,norm_R,env_E,env_Ǝ,env_c,env_ɔ
 using CUDA
 using KrylovKit
 using LinearAlgebra
@@ -55,4 +55,24 @@ end
     λƎ,Ǝ = env_Ǝ(Au, Ad, M)
     @test λƎ * Ǝ ≈ ein"((abc,ceh),dgeb),fgh -> adf"(Au,Ǝ,M,Ad)
     @show λE λƎ
+end
+
+@testset "env_c and env_ɔ with $atype{$dtype}" for atype in [Array], dtype in [ComplexF64], Ni in [1], Nj in [1, 2]
+    Random.seed!(100)
+    d = 2
+    D = 10
+    
+    Au = atype(rand(dtype,D,d,D,Ni,Nj))
+    Ad = atype(rand(dtype,D,d,D,Ni,Nj))
+
+    λc,c = env_c(Au, Ad)
+    for i in 1:Ni, j in 1:Nj
+        jr = j+1 - (j+1>Nj)*Nj
+        @test λc[i] * c[:,:,i,jr] ≈ ein"(ad,acb), dce -> be"(c[:,:,i,j],Au[:,:,:,i,j],Ad[:,:,:,i,j])
+    end
+    λɔ,ɔ = env_ɔ(Au, Ad)
+    for i in 1:Ni, j in 1:Nj
+        jr = j-1 + (j-1<1)*Nj
+        @test λɔ[i] * ɔ[:,:,i,jr] ≈ ein"(be,acb), dce -> ad"(ɔ[:,:,i,j],Au[:,:,:,i,j],Ad[:,:,:,i,j])
+    end
 end

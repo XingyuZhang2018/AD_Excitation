@@ -91,7 +91,7 @@ end
     ```
 """
 function einBƎ(k, B, AL, AR, Ǝ, M, LRE, LRƎ, λLR)
-    BƎ, info = linsolve(BƎ->BƎ - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(AL,BƎ,M,conj(AR)) ./ λLR + exp(1.0im *-k) * ein"(abc,abc),def->def"(LRE,BƎ,LRƎ), ein"((abc,ceh),dgeb),fgh -> adf"(B,Ǝ,M,conj(AR)))
+    BƎ, info = linsolve(BƎ->BƎ - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(AL,BƎ,M,conj(AR)) ./ λLR + exp(1.0im *-k) * ein"(abc,abc),def->def"(LRE,BƎ,LRƎ), ein"((abc,ceh),dgeb),fgh -> adf"(B,Ǝ,M,conj(AR)) ./ λLR)
     @assert info.converged == 1
     return BƎ
 end

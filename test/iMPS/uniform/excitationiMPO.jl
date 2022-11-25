@@ -77,8 +77,8 @@ end
 
 @testset "excitation energy" begin
     Random.seed!(100)
-    D,χ = 3,16
-    model = Heisenberg(1.0)
+    D,χ = 2,16
+    model = Heisenberg(0.5,1,1.0,-1.0,-1.0)
     H = hamiltonian(model)
     A = init_mps(D = D, χ = χ,
                 infolder = "./data/$model/")

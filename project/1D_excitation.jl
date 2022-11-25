@@ -45,11 +45,11 @@ end
     Random.seed!(100)
     D,χ = 2,16
     s1 = []
-    for k in pi:pi/12:pi
-        model = Heisenberg(0.5)
+    for k in 0:pi/12:0
+        model = Heisenberg(0.5,1,1.0,-1.0,-1.0)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
-        Δ, = excitation_spectrum(k, A, model, 30)
+        Δ, = @time excitation_spectrum(k, A, Heisenberg(0.5,1,1.0,1.0,1.0), 10)
         push!(s1,real(Δ))
     end
     for i in 1:length(s1)
@@ -112,13 +112,13 @@ end
 
 @testset "1D TFIsing S=1/2 excitation with $atype" for atype in [Array]
     Random.seed!(100)
-    D,χ = 2,8
+    D,χ = 2,16
     s1 = []
-    for k in 0:pi/12:pi
-        model = TFIsing(1/2,1.0)
+    for k in 0:pi/12:0
+        model = Heisenberg(0.5,1,1.0,-1.0,-1.0)
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
-        Δ, = @time excitation_spectrum_MPO(k, A, model, 1)
+        Δ, = @time excitation_spectrum_MPO(k, A, Heisenberg(0.5,1,1.0,1.0,1.0), 10)
         push!(s1,real(Δ))
     end
     for i in 1:length(s1)
@@ -134,11 +134,11 @@ end
 end
 
 @testset "excitation_spectrum_canonical_MPO" begin
-    model = Heisenberg(1.0)
+    model = Heisenberg(0.5,1,1.0,-1.0,-1.0)
     
     k = pi
     s1 = []
-    for χ in 2 .^ (1:7)
+    for χ in 2 .^ (6:6)
         @show χ
         Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, k, 1;
                                                              χ=χ)
