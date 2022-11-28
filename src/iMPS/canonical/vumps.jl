@@ -8,12 +8,17 @@ function init_canonical_mps(;infolder = "./data/",
                              Ni::Int = 1,
                              Nj::Int = 1,      
                              D::Int = 2, 
-                             χ::Int = 5)
+                             χ::Int = 5,
+                             targχ = χ)
 
     in_chkp_file = joinpath(infolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(χ).jld2")
     if isfile(in_chkp_file)
-        AL, C, AR = map(atype, load(in_chkp_file)["ALCAR"])
+        AL = atype(zeros(ComplexF64, targχ,D,targχ,Ni,Nj))
+        AR = atype(zeros(ComplexF64, targχ,D,targχ,Ni,Nj))
+            C = atype(zeros(ComplexF64, targχ,  targχ,Ni,Nj))
+        AL[1:χ,:,1:χ,:,:], C[1:χ,1:χ,:,:], AR[1:χ,:,1:χ,:,:] = map(atype, load(in_chkp_file)["ALCAR"])
         verbose && println("load canonical mps from $in_chkp_file")
+        targχ > χ && println("and increase χ from $(χ) to $(targχ)")
     else
         A = atype(rand(ComplexF64, χ,D,χ,Ni,Nj))
         AL, L, _ = leftorth(A)
@@ -86,8 +91,9 @@ function vumps(model;
                Ni::Int = 1,
                Nj::Int = 1,
                χ::Int = 10, 
+               targχ = χ,
                iters::Int = 100,
-               tol::Float64 = 1e-10,
+               tol::Float64 = 1e-8,
                infolder = "./data/", outfolder = "./data/",
                show_every = Inf,
                atype = Array)
@@ -102,14 +108,15 @@ function vumps(model;
     
      infolder = joinpath( infolder, "$model")
     outfolder = joinpath(outfolder, "$model")
-    out_chkp_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(χ).jld2")
+    out_chkp_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).jld2")
 
     AL, C, AR = init_canonical_mps(;infolder = infolder, 
                                     atype = atype,   
                                     Ni = Ni,
                                     Nj = Nj,       
                                     D = D, 
-                                    χ = χ)
+                                    χ = χ,
+                                    targχ = targχ)
     err = Inf
     i = 0
     energy = 0

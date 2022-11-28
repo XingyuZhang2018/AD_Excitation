@@ -11,8 +11,8 @@ using Zygote
 @testset "1D Heisenberg S=1/2 ground energy with $atype" for atype in [Array]
     Random.seed!(100)
     D = 2
-    model = Heisenberg(1/2)
-    for χ in 2 .^ (4:4)
+    model = Heisenberg(1/2,1,1.0,-1.0,-1.0)
+    for χ in 2 .^ (5:5)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")

@@ -28,7 +28,8 @@ end
 
 @testset "vumps" for Ni in [1], Nj in [2]
     Random.seed!(100)
-    χ = 16
+    χ = 8
+    targχ = 8
     model = Heisenberg(0.5,1,1.0,1.0,1.0)
-    vumps(model; Ni=Ni,Nj=Nj, χ=χ, iters = 100, show_every = 1)
+    vumps(model; Ni=Ni,Nj=Nj, χ=χ, targχ=targχ, iters = 100, show_every = 1)
 end
