@@ -12,7 +12,7 @@ using Zygote
     Random.seed!(100)
     D = 2
     model = Heisenberg(1/2,1,1.0,-1.0,-1.0)
-    for χ in 2 .^ (5:5)
+    for χ in 2 .^ (6:6)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")
@@ -109,9 +109,9 @@ end
 
 @testset "1D Heisenberg S=1 ground energy with vumps" begin
     Random.seed!(100)
-    model = Heisenberg(1.0)
+    model = Heisenberg(0.5,1,1.0,-1.0,-1.0)
     energy = [] 
-    for χ in 2 .^ (1:7)
+    for χ in 2 .^ (6:6)
         @show χ
         e = vumps(model; χ=χ, iters = 100, show_every = 1, tol = 1e-8)
         push!(energy, e)

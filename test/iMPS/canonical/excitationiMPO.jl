@@ -6,13 +6,15 @@ using Test
 using TeneT: ALCtoAC
 using LinearAlgebra
 
-@testset "initial_canonical_VL" begin
+@testset "initial_canonical_VL" for Ni in [1], Nj in [1, 2]
     D, χ = 2, 5
-    AL, C, AR = init_canonical_mps(D=D,χ=χ)
-    VL = initial_canonical_VL(reshape(AL, χ, D, χ))
-    @test ein"abc,abd->cd"(VL, conj(VL)) ≈ I(χ*(D-1))
-    @test norm(ein"abcij,abd->cd"(AL, conj(VL))) < 1e-12
-    @test norm(ein"abc,abdij->cd"(VL, conj(AL))) < 1e-12
+    AL, C, AR = init_canonical_mps(D=D,χ=χ,Ni=Ni,Nj=Nj)
+    VL = initial_canonical_VL(AL)
+    for j in 1:Nj, i in 1:Ni
+        @test ein"abc,abd->cd"(VL[:,:,:,i,j], conj(VL[:,:,:,i,j])) ≈ I(χ*(D-1))
+        @test norm(ein"abc,abd->cd"(AL[:,:,:,i,j], conj(VL[:,:,:,i,j]))) < 1e-12
+        @test norm(ein"abc,abd->cd"(VL[:,:,:,i,j], conj(AL[:,:,:,i,j]))) < 1e-12
+    end
 end
 
 @testset "H_eff" begin
@@ -59,11 +61,12 @@ end
     # @test H_mn ≈ H_mn'
 end
 
-@testset "excitation_spectrum_canonical_MPO" begin
-    model = TFIsing(0.5, 1.0)
-    χ = 16
+@testset "excitation_spectrum_canonical_MPO" for Ni in [1], Nj in [2]
+    model =  Heisenberg(0.5,1,1.0,1.0,1.0)
+    χ = 8
 
-    k = pi
-    Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, k, 1; χ=χ)
-    @test Δ ≈ [4.002384683265479, 4.011204867854616]
+    k = pi/2
+    Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, k, 1; Ni=Ni, Nj=Nj, χ=χ)
+    @show Δ
+    # @test Δ ≈ [4.002384683265479, 4.011204867854616]
 end

@@ -2,12 +2,14 @@ using TeneT: leftenv, rightenv
 export excitation_spectrum_canonical_MPO
 
 function initial_canonical_VL(AL)
-    χ,D,_ = size(AL)
-    VL = _arraytype(AL)(randn(χ, D, χ*(D-1)))
-    λL = ein"abc,abd -> cd"(VL,conj(AL))
-    VL -= ein"abc,dc -> abd"(AL,λL)
-    Q, _ = qrpos(reshape(VL, χ*D, χ*(D-1)))
-    VL = reshape(Q, χ, D, χ*(D-1))
+    χ,D,_,Ni,Nj = size(AL)
+    VL = _arraytype(AL)(randn(ComplexF64, χ, D, χ*(D-1), Ni, Nj))
+    for j in 1:Nj, i in 1:Ni
+        λL = ein"abc,abd -> cd"(VL[:,:,:,i,j],conj(AL[:,:,:,i,j]))
+        VL[:,:,:,i,j] -= ein"abc,dc -> abd"(AL[:,:,:,i,j],λL)
+        Q, _ = qrpos(reshape(VL[:,:,:,i,j], χ*D, χ*(D-1)))
+        VL[:,:,:,i,j] = reshape(Q, χ, D, χ*(D-1))
+    end
     return VL
 end
 
@@ -75,10 +77,18 @@ end
      └───AL*──┴─             f ────┴──── h  
     ```
 """
-function einEB(k, B, AL, AR, E, M, RLE, RLƎ, λRL)
-    EB, info = linsolve(EB->EB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(EB,AR,M,conj(AL)) ./ λRL + exp(1.0im * k) * ein"(abc,abc),def->def"(EB,RLƎ,RLE), ein"((adf,abc),dgeb),fgh -> ceh"(E,B,M,conj(AL)))
-    @assert info.converged == 1
-    return EB
+function einEB(k, B, AL, AR, E, M)
+    ALs = circshift(AL, (0,0,0,0,-1))
+    ARs = circshift(AR, (0,0,0,0,-1))
+    Ms  = circshift(M , (0,0,0,0,0,-1))
+    Bs  = circshift(B , (0,0,0,0,-1))
+    Es  = circshift(E , (0,0,0,0,-1))
+    # @show size.([ ein"((adfij,abcij),dgebij),fghij -> cehij"(Es,Bs,Ms,conj(ALs))])
+    EB1, info = linsolve(EB->EB - exp(2.0im * k) * ein"((adfij,abcij),dgebij),fghij -> cehij"(ein"((adfij,abcij),dgebij),fghij -> cehij"(EB,AR,M,conj(AL)),ARs,Ms,conj(ALs)), ein"((adfij,abcij),dgebij),fghij -> cehij"(Es,Bs,Ms,conj(ALs)))
+    # @assert info.converged == 1
+    EB2, info = linsolve(EB->EB - exp(2.0im * k) * ein"((adfij,abcij),dgebij),fghij -> cehij"(ein"((adfij,abcij),dgebij),fghij -> cehij"(EB,AR,M,conj(AL)),ARs,Ms,conj(ALs)), ein"((adfij,abcij),dgebij),fghij -> cehij"(ein"((adfij,abcij),dgebij),fghij -> cehij"(E,B,M,conj(AL)),ARs,Ms,conj(ALs)))
+    # @assert info.converged == 1
+    return EB1 + EB2 * exp(1.0im * k)
 end
 
 """
@@ -90,10 +100,17 @@ end
     ─┴───AR*─┘               f ────┴──── h 
     ```
 """
-function einBƎ(k, B, AL, AR, Ǝ, M, LRE, LRƎ, λLR)
-    BƎ, info = linsolve(BƎ->BƎ - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(AL,BƎ,M,conj(AR)) ./ λLR + exp(1.0im *-k) * ein"(abc,abc),def->def"(LRE,BƎ,LRƎ), ein"((abc,ceh),dgeb),fgh -> adf"(B,Ǝ,M,conj(AR)) ./ λLR)
-    @assert info.converged == 1
-    return BƎ
+function einBƎ(k, B, AL, AR, Ǝ, M)
+    ALs = circshift(AL, (0,0,0,0,1))
+    ARs = circshift(AR, (0,0,0,0,1))
+    Ms  = circshift(M , (0,0,0,0,0,1))
+    Bs  = circshift(B , (0,0,0,0,1))
+    Ǝs  = circshift(Ǝ , (0,0,0,0,1))
+    BƎ1, info = linsolve(BƎ->BƎ - exp(2.0im *-k) * ein"((abcij,cehij),dgebij),fghij -> adfij"(ALs,ein"((abcij,cehij),dgebij),fghij -> adfij"(AL,BƎ,M,conj(AR)),Ms,conj(ARs)), ein"((abcij,cehij),dgebij),fghij -> adfij"(Bs,Ǝs,Ms,conj(ARs)))
+    # @assert info.converged == 1
+    BƎ2, info = linsolve(BƎ->BƎ - exp(2.0im *-k) * ein"((abcij,cehij),dgebij),fghij -> adfij"(ALs,ein"((abcij,cehij),dgebij),fghij -> adfij"(AL,BƎ,M,conj(AR)),Ms,conj(ARs)), ein"((abcij,cehij),dgebij),fghij -> adfij"(ALs,ein"((abcij,cehij),dgebij),fghij -> adfij"(B,Ǝ,M,conj(AR)),Ms,conj(ARs)))
+    # @assert info.converged == 1
+    return BƎ1 + BƎ2 * exp(1.0im *-k)
 end
 
 """
@@ -132,14 +149,14 @@ end
     ```
 
 """
-function H_canonical_eff(k, AL, AR, Bu, E, M, Ǝ, RLE, RLƎ, LRE, LRƎ, λRL, λLR)
+function H_canonical_eff(k, AL, AR, Bu, E, M, Ǝ)
     # 1. B and dB on the same site of M
     HB  = eindB(Bu, E, M, Ǝ) 
     # HB  = eindB(Bu, E, M, Ǝ) - ein"(((adf,abc),dgeb),ceh),fgh -> "(E,AC,M,Ǝ,conj(AC))[]  * Bu
 
     # # 2. B and dB on different sites of M
-    EB = einEB(k, Bu, AL, AR, E, M, RLE, RLƎ, λRL)
-    BƎ = einBƎ(k, Bu, AL, AR, Ǝ, M, LRE, LRƎ, λLR)
+    EB = einEB(k, Bu, AL, AR, E, M)
+    BƎ = einBƎ(k, Bu, AL, AR, Ǝ, M)
     HB += eindB(AR, EB, M, Ǝ) * exp(1.0im * k) +
           eindB(AL, E, M, BƎ) * exp(1.0im *-k)
           
@@ -152,43 +169,48 @@ end
 find at least `n` smallest excitation gaps 
 """
 function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
+                                           Ni::Int = 1,
+                                           Nj::Int = 1,
                                            χ::Int = 8,
                                            atype = Array,
                                            infolder = "./data/", outfolder = "./data/")
      infolder = joinpath( infolder, "$model")
-    outfolder = joinpath(outfolder, "$model")
 
     M = atype(MPO(model))
     D = size(M, 2)
     W = size(M, 1)
+    MM= zeros(ComplexF64, (size(M)...,Ni,Nj))
+    for j in 1:Nj, i in 1:Ni
+        MM[:,:,:,:,i,j] = M
+    end
     AL, C, AR = init_canonical_mps(;infolder = infolder, 
-                                    atype = atype,        
+                                    atype = atype,  
+                                    Ni = Ni,
+                                    Nj = Nj,      
                                     D = D, 
                                     χ = χ)
     AC = ALCtoAC(AL, C)
-    E, Ǝ = envir_MPO(AL, AR, M)
-    RLE, RLƎ, λRL = envir_MPO_UD(AR, AL, M)
-    LRE, LRƎ, λLR = envir_MPO_UD(AL, AR, M)
+    E, Ǝ = envir_MPO(AL, AR, MM)
 
-    AL, AR, AC = map(x->reshape(x, χ,D,χ), (AL, AR, AC ))
-    C = reshape(C, χ, χ)
-    E, Ǝ = map(x->reshape(x, χ,W,χ), (E, Ǝ))
+    # AL, AR, AC = map(x->reshape(x, χ,D,χ), (AL, AR, AC ))
+    # C = reshape(C, χ, χ)
+    # E, Ǝ = map(x->reshape(x, χ,W,χ), (E, Ǝ))
 
     VL= initial_canonical_VL(AL)
 
-    X = zeros(ComplexF64, χ*(D-1), χ)
-    # X = atype(randn(ComplexF64, χ*(D-1), χ))
-    X[1] = 1.0
-    X = atype(X)
+    # X = zeros(ComplexF64, χ*(D-1), χ, Ni, Nj)
+    X = atype(randn(ComplexF64, χ*(D-1), χ, Ni, Nj))
+    # X[1] = 1.0
+    # X = atype(X)
     # X /= sqrt(ein"ab,ab->"(X,conj(X))[])
     function f(X)
-        Bu = ein"abc,cd->abd"(VL, X)
-        HB = H_canonical_eff(k, AL, AR, Bu, E, M, Ǝ, RLE, RLƎ, LRE, LRƎ, λRL, λLR)
-        HB = ein"abc,abd->dc"(HB,conj(VL))
+        Bu = ein"abcij,cdij->abdij"(VL, X)
+        HB = H_canonical_eff(k, AL, AR, Bu, E, MM, Ǝ)
+        HB = ein"abcij,abdij->dcij"(HB,conj(VL))
         return HB
     end
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = false, maxiter = 100)
     # @assert info.converged == 1
-    Δ .-= Array(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,AC,M,Ǝ,conj(AC)))[] 
+    # Δ .-= Array(ein"(((adfij,abcij),dgebij),cehij),fghij -> "(circshift(ein"((adfij,abcij),dgebij),fghij -> cehij"(E,AL,MM,conj(AL)),(0,0,0,0,1)),AC,MM,Ǝ,conj(AC)))[] 
     return Δ, Y, info
 end

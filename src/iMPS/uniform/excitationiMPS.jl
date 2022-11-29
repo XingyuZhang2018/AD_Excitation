@@ -1,28 +1,31 @@
 export excitation_spectrum
 
 """
-    L_n, R_n = env_norm(A)
+    c, ɔ = env_norm!(A)
 
     get normalized environment of A
 
     ```  
                             a──────┬──────b
     ┌───┐                   │      │      │
-    L   R  = 1              │      c      │
+    c   ɔ  = 1              │      c      │
     └───┘                   │      │      │
                             d──────┴──────e      
                                                         
     ┌─ A ─      ┌─            ─ A──┐       ─┐
-    L  │   =    L               │  R  =     R  
+    c  │   =    c               │  ɔ  =     ɔ  
     └─ A*─      └─            ─ A*─┘       ─┘
     ```  
 """
-function env_norm(A)
-    _, L_n = norm_L(A, conj(A))
-    _, R_n = norm_R(A, conj(A))
-    n = ein"((ad,acb),dce),be->"(L_n,A,conj(A),R_n)[]
-    L_n /= n
-    return L_n, R_n
+function env_norm!(A)
+    _, c = env_c(A, conj(A))
+    _, ɔ = env_ɔ(A, conj(A))
+    # To do: real NixNj norm
+    n = ein"(adij,acbij),(dceij,beij) ->"(c,A,conj(A),ɔ)[]/ein"abij,abij ->"(c, ɔ)[]
+    A ./= sqrt(n)
+    n = ein"abij,abij ->"(c,ɔ)[]
+    c /= n
+    return c, ɔ
 end
 
 """
@@ -68,14 +71,16 @@ function initial_excitation(A, L_n, R_n)
     return Bs
 end
 
-function initial_VL(A, L_n)
-    χ,D,_ = size(A)
-    VL = randn(χ, D, χ*(D-1))
-    sq_L_n = sqrt(L_n)
-    λL = ein"(ad,acb),dce -> eb"(sq_L_n,VL,conj(A))
-    VL -= ein"(ba,bcd),ed,ef ->acf"(sq_L_n,A,L_n^-1,λL)
-    Q, _ = qrpos(reshape(VL, χ*D, χ*(D-1)))
-    VL = reshape(Q, χ, D, χ*(D-1))
+function initial_VL(A, c)
+    χ,D,_,Ni,Nj = size(A)
+    VL = randn(ComplexF64,χ, D, χ*(D-1),Ni,Nj)
+    for j in 1:Nj, i in 1:Ni
+        sq_c = sqrt(c[:,:,i,j])
+        λL = ein"(ad,acb),dce -> eb"(sq_c,VL[:,:,:,i,j],conj(A[:,:,:,i,j]))
+        VL[:,:,:,i,j] -= ein"(ba,bcd),ed,ef ->acf"(sq_c,A[:,:,:,i,j],c[:,:,i,j]^-1,λL)
+        Q, _ = qrpos(reshape(VL[:,:,:,i,j], χ*D, χ*(D-1)))
+        VL[:,:,:,i,j] = reshape(Q, χ, D, χ*(D-1))
+    end
     return VL
 end
 

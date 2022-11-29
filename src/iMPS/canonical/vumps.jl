@@ -56,7 +56,7 @@ function envir_MPO(AL, AR, M)
         if i == 1 # if M[i,:,i,:] == I(d)
             bL = YL 
             E[:,i,:,:,:], infoE = linsolve(X->circshift(X, (0,0,0,1)) - ein"abcij,(adij,dbeij)->ceij"(AL,X,conj(AL)) + ein"(abij,abij),cdij->cdij"(X, ɔ, E[:,W,:,:,:]), bL)
-            @assert infoE.converged == 1
+            # @assert infoE.converged == 1
         else
             E[:,i,:,:,:] = circshift(YL, (0,0,0,-1))
         end
@@ -74,7 +74,7 @@ function envir_MPO(AL, AR, M)
         if i == W # if M[i,:,i,:] == I(d)
             bR = YR 
             Ǝ[:,i,:,:,:], infoƎ = linsolve(X->circshift(X, (0,0,0,-1)) - ein"(abcij,ceij),dbeij->adij"(AR,X,conj(AR)) + ein"(abij,abij),cdij->cdij"(c, X, Ǝ[:,1,:,:,:]), bR)
-            @assert infoƎ.converged == 1
+            # @assert infoƎ.converged == 1
         else
             Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,1))
         end

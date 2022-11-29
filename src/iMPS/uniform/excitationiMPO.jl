@@ -44,40 +44,41 @@ end
 #     return E, Ǝ
 # end
 
-function envir_MPO(A, M)
-    χ,d,_ = size(A)
-    W     = size(M, 1)
-    E = zeros(ComplexF64, χ,W,χ)
-    Ǝ = zeros(ComplexF64, χ,W,χ)
-    c,ɔ = env_norm(A)
+function envir_MPO(A, c, ɔ, M)
+    atype = _arraytype(A)
+    χ,d,_,Nx,Ny = size(A)
+    W           = size(M, 1)
 
-    E[:,W,:] = c
+    E = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
+    Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
+
+    E[:,W,:,:,:] = c
     for i in W-1:-1:1
-        YL = zeros(ComplexF64, χ,χ)
+        YL = atype == Array ? zeros(ComplexF64, χ,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,χ,Nx,Ny)
         for j in i+1:W
-            YL += ein"(abc,db),(ae,edf)->cf"(A,M[j,:,i,:],E[:,j,:],conj(A))
+            YL += ein"(abcij,dbij),(aeij,edfij)->cfij"(A,M[j,:,i,:,:,:],E[:,j,:,:,:],conj(A))
         end
         if M[i,:,i,:] == I(d)
-            bL = YL - ein"ab,ab->"(YL,ɔ)[] * c
-            E[:,i,:], infoE = linsolve(E->E - ein"abc,(ad,dbe)->ce"(A,E,conj(A)) + ein"ab,ab->"(E, ɔ)[] * c, bL)
+            bL = YL - ein"abij,abij->"(YL,ɔ)[] * c
+            E[:,i,:,:,:], infoE = linsolve(X->circshift(X, (0,0,0,1)) - ein"abcij,(adij,dbeij)->ceij"(A,X,conj(A)) + ein"(abij,abij),cdij->cdij"(X, ɔ, E[:,W,:,:,:]), bL)
             @assert infoE.converged == 1
         else
-            E[:,i,:] = YL
+            E[:,i,:,:,:] = circshift(YL, (0,0,0,-1))
         end
     end
 
-    Ǝ[:,1,:] = ɔ
+    Ǝ[:,1,:,:,:] = ɔ
     for i in 2:W
-        YR = zeros(ComplexF64, χ,χ)
+        YR = atype == Array ? zeros(ComplexF64, χ,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,χ,Nx,Ny)
         for j in 1:i-1
-            YR += ein"((abc,db),cf),edf->ae"(A,M[i,:,j,:],Ǝ[:,j,:],conj(A))
+            YR += ein"((abcij,dbij),cfij),edfij->aeij"(A,M[i,:,j,:,:,:],Ǝ[:,j,:,:,:],conj(A))
         end
         if M[i,:,i,:] == I(d)
-            bR = YR - ein"ab,ab->"(c,YR)[] * ɔ
-            Ǝ[:,i,:], infoƎ = linsolve(Ǝ->Ǝ - ein"(abc,ce),dbe->ad"(A,Ǝ,conj(A)) + ein"ab,ab->"(c, Ǝ)[] * ɔ, bR)
+            bR = YR - ein"abij,abij->"(c,YR)[] * ɔ
+            Ǝ[:,i,:,:,:], infoƎ = linsolve(X->circshift(X, (0,0,0,-1)) - ein"(abcij,ceij),dbeij->adij"(A,X,conj(A)) + ein"(abij,abij),cdij->cdij"(c, X, Ǝ[:,1,:,:,:]), bR)
             @assert infoƎ.converged == 1
         else
-            Ǝ[:,i,:] = YR
+            Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,1))
         end
     end
 
@@ -96,7 +97,7 @@ end
     ```
 """
 function einLB(k, L, B, A, E, M, Ǝ)
-    LB, info = linsolve(LB->LB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(LB,A,M,conj(A)) + exp(1.0im * k) * ein"abc,abc->"(LB,Ǝ)[]*E, ein"((adf,abc),dgeb),fgh -> ceh"(L,B,M,conj(A)))
+    LB, info = linsolve(LB->LB - exp(1.0im * k) * ein"((adfij,abcij),dgebij),fghij -> cehij"(LB,A,M,conj(A)) + exp(1.0im * k) * ein"abcij,abcij->"(LB,Ǝ)[]*E, ein"((adfij,abcij),dgebij),fghij -> cehij"(L,B,M,conj(A)))
     @assert info.converged == 1
     return LB
 end
@@ -111,7 +112,7 @@ end
     ```
 """
 function einRB(k, R, B, A, E, M, Ǝ)
-    RB, info = linsolve(RB->RB - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(A,RB,M,conj(A)) + exp(1.0im *-k) * ein"abc,abc->"(E,RB)[]*Ǝ, ein"((abc,ceh),dgeb),fgh -> adf"(B,R,M,conj(A)))
+    RB, info = linsolve(RB->RB - exp(1.0im *-k) * ein"((abcij,cehij),dgebij),fghij -> adfij"(A,RB,M,conj(A)) + exp(1.0im *-k) * ein"abcij,abcij->"(E,RB)[]*Ǝ, ein"((abcij,cehij),dgebij),fghij -> adfij"(B,R,M,conj(A)))
     @assert info.converged == 1
     return RB
 end
@@ -125,7 +126,7 @@ end
      └──   ──┘               f ────┴──── h 
     ```
 """
-eindB(A, E, M, Ǝ) = ein"((adf,abc),dgeb),ceh->fgh"(E,A,M,Ǝ)
+eindB(A, E, M, Ǝ) = ein"((adfij,abcij),dgebij),cehij->fghij"(E,A,M,Ǝ)
 
 """
     H_mn = H_eff(k, A, Bu, Bd, H, L_n, R_n, s1, s2, s3)
@@ -179,36 +180,63 @@ end
 
 find at least `n` smallest excitation gaps 
 """
-function excitation_spectrum_MPO(k, A, model, n::Int = 1;
-                             infolder = "./data/", outfolder = "./data/")
-     infolder = joinpath( infolder, "$model")
-    outfolder = joinpath(outfolder, "$model")
+function excitation_spectrum_MPO(k, model, n::Int = 1;
+                             gs_from = "c",
+                             Ni::Int = 1,
+                             Nj::Int = 1,
+                             χ::Int,
+                             atype = Array,
+                             infolder = "./data/")
 
-    χ, D, _ = size(A)
-    key = D, χ, infolder, outfolder
-    M = _arraytype(A)(MPO(model))
+    infolder = joinpath(infolder, "$model")
+    M = atype(MPO(model))
+    D = size(M, 2)
+    MM= zeros(ComplexF64, (size(M)...,Ni,Nj))
+    for j in 1:Nj, i in 1:Ni
+        MM[:,:,:,:,i,j] = M
+    end
 
-    E, Ǝ      = envir_MPO(A, M)
-    Ln, Rn    = env_norm(A)
-    sq_Ln     = sqrt(Ln)
-    sq_Rn     = sqrt(Rn)
-    inv_sq_Ln = sq_Ln^-1
-    inv_sq_Rn = sq_Rn^-1
-    VL        = initial_VL(A, Ln)
+    if gs_from == "c"
+        A, _ = init_canonical_mps(;infolder = infolder,
+                                atype = atype,
+                                Ni = Ni,
+                                Nj = Nj,
+                                D = D,
+                                χ = χ)
+        println("load canonical mps")
+    else
+        A = init_mps(D = D, χ = χ,
+                     infolder = infolder)
+        
+        A = reshape(A, χ,D,χ,1,1)
+        println("load uniform mps")
+    end
 
-    X = zeros(ComplexF64, χ*(D-1), χ)
-    # X = rand(ComplexF64, χ, D, χ)
-    X[1] = 1.0
+    c, ɔ     = env_norm!(A)
+    E, Ǝ     = envir_MPO(A, c, ɔ, M)
+    sq_c,sq_ɔ,inv_sq_c,inv_sq_ɔ = [similar(c) for _ in 1:4]
+    for j in 1:Nj, i in 1:Ni
+        sq_c[:,:,i,j]     = sqrt(c[:,:,i,j])
+        sq_ɔ[:,:,i,j]     = sqrt(ɔ[:,:,i,j])
+        inv_sq_c[:,:,i,j] = sq_c[:,:,i,j]^-1
+        inv_sq_ɔ[:,:,i,j] = sq_ɔ[:,:,i,j]^-1
+    end
+
+    VL       = initial_VL(A, c)
+
+    # X = zeros(ComplexF64, χ*(D-1), χ)
+    X = rand(ComplexF64, χ*(D-1), χ, Ni, Nj)
+    # X[1] = 1.0
     # X /= sqrt(ein"ab,ab->"(X,conj(X))[])
     
     function f(X)
-        Bu = ein"((ba,bcd),de),ef->acf"(inv_sq_Ln, VL, X, inv_sq_Rn)
-        HB = H_MPO_eff(k, A, Bu, E, M, Ǝ)
-        HB = ein"((ba,bcd),acf),de->fe"(inv_sq_Ln,HB,conj(VL),inv_sq_Rn)
+        Bu = ein"((baij,bcdij),deij),efij->acfij"(inv_sq_c, VL, X, inv_sq_ɔ)
+        HB = H_MPO_eff(k, A, Bu, E, MM, Ǝ)
+        HB = ein"((baij,bcdij),acfij),deij->feij"(inv_sq_c,HB,conj(VL),inv_sq_ɔ)
         return HB
     end
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = true, maxiter = 100)
     # @assert info.converged == 1
-    Δ .-= real(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A))[])
+    Δ .-= real(ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,A,MM,Ǝ,conj(A))[])
     return Δ, Y, info
 end
