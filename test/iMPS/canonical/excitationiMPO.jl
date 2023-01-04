@@ -65,5 +65,5 @@ end
 
     k = pi
     Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, k, 1; χ=χ)
-    @show Δ 
+    @test Δ ≈ [4.002384683265479, 4.011204867854616]
 end

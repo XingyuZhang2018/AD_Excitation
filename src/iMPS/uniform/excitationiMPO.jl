@@ -12,11 +12,18 @@ a ────┬──── c
 f ────┴──── h 
 
 """
-function energy_gs_MPO(A, M)
-    E, Ǝ = envir_MPO(A, M)
-    e = ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A))[]
-    n = ein"abc,abc -> "(E,Ǝ)[]
-    @show e n
+function energy_gs_MPO(A, M, E, Ǝ)
+    # e = ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,A,M,Ǝ,conj(A))[]
+    # n = ein"abcij,abcij -> "(E,Ǝ)[]
+    # e = ein"abcij,abcij -> "(EMmap(EMmap(E, M, A, A), M, A, A), Ǝ)[]
+    # n = ein"abcij,abcij -> "(EMmap(E, M, A, A), Ǝ)[]
+    # e = ein"abcij,abcij -> "(EMmap(E, M, A, A), Ǝ)[]
+    # n = ein"abcij,abcij -> "(E,Ǝ)[]
+    e = ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,A,M,Ǝ,conj(A))[]
+    n = ein"abcij,abcij -> "(circshift(E, (0,0,0,0,1)),Ǝ)[]
+    n1 = ein"abcij,abcij -> "(E,circshift(Ǝ, (0,0,0,0,1)))[]
+    @show e n (e-n)/2 n1
+
     return e-n
 end
 
@@ -44,46 +51,57 @@ end
 #     return E, Ǝ
 # end
 
-function envir_MPO(A, M)
-    χ,d,_ = size(A)
-    W     = size(M, 1)
-    E = zeros(ComplexF64, χ,W,χ)
-    Ǝ = zeros(ComplexF64, χ,W,χ)
-    c,ɔ = env_norm(A)
+function envir_MPO(A, M, c, ɔ)
+    atype = _arraytype(M)
+    χ,Nx,Ny = size(A)[[1,4,5]]
+    W       = size(M, 1)
 
-    E[:,W,:] = c
+    E = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
+    Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
+
+    E[:,W,:,:,:] = c
     for i in W-1:-1:1
-        YL = zeros(ComplexF64, χ,χ)
+        YL = atype == Array ? zeros(ComplexF64, χ,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,χ,Nx,Ny)
         for j in i+1:W
-            YL += ein"(abc,db),(ae,edf)->cf"(A,M[j,:,i,:],E[:,j,:],conj(A))
+            YL += ein"(abcij,dbij),(aeij,edfij)->cfij"(A,M[j,:,i,:,:,:],E[:,j,:,:,:],conj(A))
         end
-        if M[i,:,i,:] == I(d)
-            bL = YL - ein"ab,ab->"(YL,ɔ)[] * c
-            E[:,i,:], infoE = linsolve(E->E - ein"abc,(ad,dbe)->ce"(A,E,conj(A)) + ein"ab,ab->"(E, ɔ)[] * c, bL)
+        if i == 1 # if M[i,:,i,:] == I(d)
+            bL = YL 
+            E[:,i,:,:,:], infoE = linsolve(X->circshift(X, (0,0,0,1)) - ein"abcij,(adij,dbeij)->ceij"(A,X,conj(A)) + ein"(abij,abij),cdij->cdij"(X, ɔ, E[:,W,:,:,:]), bL)
             @assert infoE.converged == 1
         else
-            E[:,i,:] = YL
+            E[:,i,:,:,:] = circshift(YL, (0,0,0,-1))
         end
+        # E[:,i,:,:,:] = circshift(YL, (0,0,0,1))
     end
 
-    Ǝ[:,1,:] = ɔ
+    Ǝ[:,1,:,:,:] = ɔ
     for i in 2:W
-        YR = zeros(ComplexF64, χ,χ)
+        YR = atype == Array ? zeros(ComplexF64, χ,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,χ,Nx,Ny)
         for j in 1:i-1
-            YR += ein"((abc,db),cf),edf->ae"(A,M[i,:,j,:],Ǝ[:,j,:],conj(A))
+            YR += ein"((abcij,dbij),cfij),edfij->aeij"(A,M[i,:,j,:,:,:],Ǝ[:,j,:,:,:],conj(A))
         end
-        if M[i,:,i,:] == I(d)
-            bR = YR - ein"ab,ab->"(c,YR)[] * ɔ
-            Ǝ[:,i,:], infoƎ = linsolve(Ǝ->Ǝ - ein"(abc,ce),dbe->ad"(A,Ǝ,conj(A)) + ein"ab,ab->"(c, Ǝ)[] * ɔ, bR)
+        if i == W # if M[i,:,i,:] == I(d)
+            bR = YR 
+            Ǝ[:,i,:,:,:], infoƎ = linsolve(X->circshift(X, (0,0,0,-1)) - ein"(abcij,ceij),dbeij->adij"(A,X,conj(A)) + ein"(abij,abij),cdij->cdij"(c, X, Ǝ[:,1,:,:,:]), bR)
             @assert infoƎ.converged == 1
         else
-            Ǝ[:,i,:] = YR
+            Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,1))
         end
+        # Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,-1))
     end
 
-    # @show ein"ab,ab->"(c,YR)[] ein"ab,ab->"(YL,ɔ)[] ein"ab,ab->"(c,Ǝ[:,3,:])[] ein"ab,ab->"(E[:,1,:],ɔ)[] 
-    # @show ein"(abc,ce),(ad,dbe)->"(A,Ǝ[:,3,:],c,conj(A))[]
     return E, Ǝ
+end
+
+function EMmap(E, M, Au, Ad)
+    E = ein"((adfij,abcij),dgebij),fghij -> cehij"(E,Au,M,conj(Ad))
+    circshift(E, (0,0,0,0,1))
+end
+
+function MƎmap(Ǝ, M, Au, Ad)
+    Ǝ = ein"((abcij,cehij),dgebij),fghij -> adfij"(Au,Ǝ,M,conj(Ad))
+    circshift(Ǝ, (0,0,0,0,-1))
 end
 
 """
@@ -96,9 +114,11 @@ end
     ```
 """
 function einLB(k, L, B, A, E, M, Ǝ)
-    LB, info = linsolve(LB->LB - exp(1.0im * k) * ein"((adf,abc),dgeb),fgh -> ceh"(LB,A,M,conj(A)) + exp(1.0im * k) * ein"abc,abc->"(LB,Ǝ)[]*E, ein"((adf,abc),dgeb),fgh -> ceh"(L,B,M,conj(A)))
+    LB1, info = linsolve(LB->LB - exp(2.0im * k) * EMmap(EMmap(LB, M, A, A), M, A, A) + exp(2.0im * k) * ein"(abcij,abcij),defij->defij"(LB,circshift(Ǝ,(0,0,0,0,-1)),E), EMmap(L, M, B, A))
     @assert info.converged == 1
-    return LB
+    LB2, info = linsolve(LB->LB - exp(2.0im * k) * EMmap(EMmap(LB, M, A, A), M, A, A) + exp(2.0im * k) * ein"(abcij,abcij),defij->defij"(LB,circshift(Ǝ,(0,0,0,0,-1)),E), EMmap(EMmap(L, M, B, A), M, A, A))
+    @assert info.converged == 1
+    return LB1 * exp(1.0im * k) + LB2 * exp(2.0im * k) 
 end
 
 """
@@ -111,9 +131,11 @@ end
     ```
 """
 function einRB(k, R, B, A, E, M, Ǝ)
-    RB, info = linsolve(RB->RB - exp(1.0im *-k) * ein"((abc,ceh),dgeb),fgh -> adf"(A,RB,M,conj(A)) + exp(1.0im *-k) * ein"abc,abc->"(E,RB)[]*Ǝ, ein"((abc,ceh),dgeb),fgh -> adf"(B,R,M,conj(A)))
+    RB1, info = linsolve(RB->RB - exp(2.0im *-k) *  MƎmap(MƎmap(RB, M, A, A), M, A, A) + exp(2.0im *-k) * ein"(abcij,abcij),defij->defij"(circshift(E,(0,0,0,0,-1)),RB,Ǝ), MƎmap(R, M, B, A))
     @assert info.converged == 1
-    return RB
+    RB2, info = linsolve(RB->RB - exp(2.0im *-k) *  MƎmap(MƎmap(RB, M, A, A), M, A, A) + exp(2.0im *-k) * ein"(abcij,abcij),defij->defij"(circshift(E,(0,0,0,0,-1)),RB,Ǝ), MƎmap(MƎmap(R, M, B, A), M, A, A))
+    @assert info.converged == 1
+    return RB1 * exp(1.0im *-k) + RB2 * exp(2.0im *-k)
 end
 
 """
@@ -125,7 +147,7 @@ end
      └──   ──┘               f ────┴──── h 
     ```
 """
-eindB(A, E, M, Ǝ) = ein"((adf,abc),dgeb),ceh->fgh"(E,A,M,Ǝ)
+eindB(A, E, M, Ǝ) = ein"((adfij,abcij),dgebij),cehij->fghij"(E,A,M,Ǝ)
 
 """
     H_mn = H_eff(k, A, Bu, Bd, H, L_n, R_n, s1, s2, s3)
@@ -165,13 +187,29 @@ eindB(A, E, M, Ǝ) = ein"((adf,abc),dgeb),ceh->fgh"(E,A,M,Ǝ)
 """
 function H_MPO_eff(k, A, Bu, E, M, Ǝ)
     # 1. B and dB on the same site of M
-    HB  = eindB(Bu, E, M, Ǝ)
- 
+    HB = eindB(Bu, E, M, Ǝ)
+
     # 2. B and dB on different sites of M
-    HB += eindB(A, einLB(k, E, Bu, A, E, M, Ǝ), M, Ǝ) * exp(1.0im * k) +
-          eindB(A, E, M, einRB(k, Ǝ, Bu, A, E, M, Ǝ)) * exp(1.0im *-k)
+    HB += eindB(A, einLB(k, E, Bu, A, E, M, Ǝ), M, Ǝ) +
+          eindB(A, E, M, einRB(k, Ǝ, Bu, A, E, M, Ǝ)) 
 
     return HB
+end
+
+"""
+    ```
+     ┌───Bu──┐             a──┬──b
+     │   │   │             │  │  │ 
+     c   │   ɔ             │  c  │ 
+     │   │   │             │  │  │ 
+     └──   ──┘             d─   ─e
+    ```
+"""
+function N_MPO_eff(Bu, c, ɔ)
+    # 1. B, dB on the same site
+    NB = ein"(adij,acbij),beij->dceij"(c, Bu, ɔ)
+
+    return NB
 end
 
 """
@@ -184,31 +222,67 @@ function excitation_spectrum_MPO(k, A, model, n::Int = 1;
      infolder = joinpath( infolder, "$model")
     outfolder = joinpath(outfolder, "$model")
 
-    χ, D, _ = size(A)
-    key = D, χ, infolder, outfolder
-    M = _arraytype(A)(MPO(model))
+    χ, D, _, Ni,Nj = size(A)
+    Mo = _arraytype(A)(MPO(model))
+    M  = zeros(ComplexF64, (size(Mo)...,Ni,Nj))
+    for j in 1:Nj, i in 1:Ni
+        M[:,:,:,:,i,j] = Mo
+    end
 
-    E, Ǝ      = envir_MPO(A, M)
-    Ln, Rn    = env_norm(A)
-    sq_Ln     = sqrt(Ln)
-    sq_Rn     = sqrt(Rn)
-    inv_sq_Ln = sq_Ln^-1
-    inv_sq_Rn = sq_Rn^-1
-    VL        = initial_VL(A, Ln)
-
-    X = zeros(ComplexF64, χ*(D-1), χ)
-    # X = rand(ComplexF64, χ, D, χ)
-    X[1] = 1.0
-    # X /= sqrt(ein"ab,ab->"(X,conj(X))[])
+    _, c = env_c(A, conj(A))
+    _, ɔ = env_ɔ(A, conj(A))
     
+    for j in 1:Nj, i in 1:Ni
+        jr = j+1 - Nj*(j+1>Nj)
+        ɔ[:,:,i,j] ./= ein"ab,ab->"(c[:,:,i,jr],ɔ[:,:,i,j])
+    end
+    E, Ǝ      = envir_MPO(A, M, c, ɔ)
+    sq_c = similar(c)
+    sq_ɔ = similar(c)
+    inv_sq_c = similar(c)
+    inv_sq_ɔ = similar(c)
+    VL = zeros(ComplexF64, χ,D,(D-1)*χ,Ni,Nj)
+    for j in 1:Nj, i in 1:Ni
+        sq_c[:,:,i,j]     = sqrt(c[:,:,i,j])
+        sq_ɔ[:,:,i,j]     = sqrt(ɔ[:,:,i,j])
+        inv_sq_c[:,:,i,j] = (sq_c[:,:,i,j])^-1 
+        inv_sq_ɔ[:,:,i,j] = (sq_ɔ[:,:,i,j])^-1
+        VL[:,:,:,i,j]     = initial_VL(A[:,:,:,i,j], c[:,:,i,j])
+    end
+  
+    X = rand(ComplexF64, χ*(D-1), χ, Ni, Nj)
+    # X = ones(ComplexF64, χ*(D-1), χ, Ni, Nj)
+    # X[1] = 1.0
+    # X /= sqrt(ein"ab,ab->"(X,conj(X))[])
+    E1 = ein"abcij,abcij -> ij"(EMmap(E, M, A, A), Ǝ)
+    # E2 = ein"abcij,abcij -> ij"(EMmap(EMmap(E, M, A, A), M, A, A), Ǝ)
+    # E3 = ein"abcij,abcij -> ij"(E, MƎmap(Ǝ, M, A, A))
+    # E4 = ein"abcij,abcij -> ij"(E, MƎmap(MƎmap(Ǝ, M, A, A), M, A, A))
+    # @show E1 E2 E3 E4
+    E0 = E1
+    # E0 = ein"abcij,abcij -> ij"(EMmap(E, M, A, A), Ǝ)
+    # E0[1,1], E0[1,2] = E0[1,2], E0[1,1]
+    # @show energy_gs_MPO(A, M, E, Ǝ)
     function f(X)
-        Bu = ein"((ba,bcd),de),ef->acf"(inv_sq_Ln, VL, X, inv_sq_Rn)
-        HB = H_MPO_eff(k, A, Bu, E, M, Ǝ)
-        HB = ein"((ba,bcd),acf),de->fe"(inv_sq_Ln,HB,conj(VL),inv_sq_Rn)
+        Bu = ein"((baij,bcdij),deij),efij->acfij"(inv_sq_c, VL, X, inv_sq_ɔ)
+        HB = H_MPO_eff(k, A, Bu, E, M, Ǝ) - ein"(adij,acbij),beij, ij->dceij"(c, Bu, ɔ, E0)
+        # HB = H_MPO_eff(k, A, Bu, E, M, Ǝ)
+        # NB = N_MPO_eff(Bu, c, ɔ)
+        HB = ein"((baij,bcdij),acfij),deij->feij"(inv_sq_c,HB,conj(VL),inv_sq_ɔ)
+        # NB = ein"((baij,bcdij),acfij),deij->feij"(inv_sq_c,NB,conj(VL),inv_sq_ɔ)
         return HB
     end
-    Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = true, maxiter = 100)
+    Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = false, maxiter = 100)
+    @show Δ
+    # Δ /= 2
+    # Δ, Y, info = geneigsolve(x -> f(x), X, n, :SR, ishermitian = true, isposdef = true)
     # @assert info.converged == 1
-    Δ .-= real(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A))[])
+    # @show ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,A,M,Ǝ,conj(A))[]
+    # Δ .-= ein"abcij,abcij -> "(EMmap(EMmap(E, M, A, A), M, A, A), Ǝ)
+    # E0 = ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,A,M,Ǝ,conj(A))[]
+    # E0 = ein"abcij,abcij -> "(EMmap(E, M, A, A), Ǝ)[]
+    # E1 = ein"abcij,abcij -> "(EMmap(EMmap(E, M, A, A), M, A, A), Ǝ)[]
+    # @show Δ E0 E1
+    # Δ .-= E0
     return Δ, Y, info
 end
