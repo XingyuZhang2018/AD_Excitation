@@ -18,10 +18,10 @@ function init_mps(;infolder = "./data/",
         A = atype(randn(ComplexF64, χ,D,χ))
         verbose && println("random initial mps $in_chkp_file")
     end
-    # _, L_n = norm_L(A, conj(A))
-    # _, R_n = norm_R(A, conj(A))
-    # n = ein"(ad,acb),(dce,be) ->"(L_n,A,conj(A),R_n)[]/ein"ab,ab ->"(L_n,R_n)[]
-    # A /= sqrt(n)
+    _, L_n = norm_L(A, conj(A))
+    _, R_n = norm_R(A, conj(A))
+    n = ein"(ad,acb),(dce,be) ->"(L_n,A,conj(A),R_n)[]/ein"ab,ab ->"(L_n,R_n)[]
+    A /= sqrt(n)
     return A
 end
 

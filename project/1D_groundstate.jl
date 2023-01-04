@@ -28,8 +28,8 @@ end
 @testset "1D TFIsing S=1/2 at critical point ground energy with $atype" for atype in [Array]
     Random.seed!(100)
     D = 2
-    model = TFIsing(1/2,1.0)
-    for χ in 2 .^ (5:5)
+    model = TFIsing(1/2,1,1.0)
+    for χ in 2 .^ (4:4)
         @show χ
         A = init_mps(D = D, χ = χ,
                      infolder = "./data/$model/")

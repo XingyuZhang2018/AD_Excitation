@@ -161,8 +161,8 @@ end
 
 @testset "excitation energy" begin
     Random.seed!(100)
-    D,χ = 2,4
-    model = Heisenberg(0.5,1,1.0,1.0,1.0)
+    D,χ = 2,8
+    model = Heisenberg(0.5,4,1.0,-1.0,-1.0)
     # H = hamiltonian(model)
     # A = init_mps(D = D, χ = χ,
     #             infolder = "./data/$model/")
@@ -173,11 +173,11 @@ end
                                     D = D, 
                                     χ = χ)
     # @show ein"abc,abd->cd"(AL[:,:,:,1,1],conj(AL[:,:,:,1,1]))
-    A = AL
+    A = AL[:,:,:,1,1]
 
-    for k in [0]
+    for k in [(0,0)]
         Δ1, v1, info = @time excitation_spectrum_MPO(k, A, model, 1)
-        @show Δ1 Δ1[2] - Δ1[1]
+        @show Δ1
     end
     # Δ2, v2, info = @time excitation_spectrum(k, A, model, 1)
     # @test Δ1 ≈ Δ2

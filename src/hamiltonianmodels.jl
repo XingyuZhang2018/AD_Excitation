@@ -78,13 +78,15 @@ function hamiltonian(model::Heisenberg)
 end
 
 """
-    TFIsing(hx::Real)
-return a struct representing the spin-`S` transverse field ising model with magnetisation `hx`.
+    TFIsing(λ::Real)
+return a struct representing the spin-`S` transverse field ising model with magnetisation `λ`.
 """
 struct TFIsing{T<:Real} <: HamiltonianModel
-     S::T
-    hx::T
+    S::T
+    N::Int
+    λ::T
 end
+TFIsing(S, λ) = TFIsing(S, 1, λ)
 
 """
     hamiltonian(model::TFIsing)
@@ -92,12 +94,12 @@ return the transverse field ising hamiltonian for the provided `model` as a
 two-site operator.
 """
 function hamiltonian(model::TFIsing)
-    S, hx = model.S, model.hx
+    S, λ = model.S, model.λ
     Sx, Sz = 2*const_Sx(1/2), 2*const_Sz(1/2)
     D = size(Sx,1)
        - ein"ij,kl -> ijkl"(Sz,Sz) -
-    hx/2 * ein"ij,kl -> ijkl"(Sx, I(D)) -
-    hx/2 * ein"ij,kl -> ijkl"(I(D), Sx)
+    λ/2 * ein"ij,kl -> ijkl"(Sx, I(D)) -
+    λ/2 * ein"ij,kl -> ijkl"(I(D), Sx)
 end
 
 struct XXZ{T<:Real} <: HamiltonianModel

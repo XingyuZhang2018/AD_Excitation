@@ -54,14 +54,27 @@ end
 return the heisenberg hamiltonian for the `model` as a two-site operator.
 """
 function MPO(model::TFIsing)
-    S, hx = model.S, model.hx
-    σx, σz = 2*const_Sx(1/2), 2*const_Sz(1/2)
-    d = size(σx, 1)
-    M = zeros(ComplexF64, 3, d, 3, d)
-    M[1,:,1,:] .= I(d)
-    M[2,:,1,:] .= -σz
-    M[3,:,1,:] .= -hx * σx
-    M[3,:,2,:] .= σz
-    M[3,:,3,:] .= I(d)
+    S, N, λ = model.S, model.N, model.λ
+    Sx, Sz = 2*const_Sx(S), 2*const_Sz(S)
+    d = size(Sx, 1)
+    if N == 1
+        M = zeros(ComplexF64, 3, d, 3, d)
+        M[1,:,1,:] .= I(d)
+        M[2,:,1,:] .= -Sz
+        M[3,:,1,:] .= -λ * Sx
+        M[3,:,2,:] .= Sz
+        M[3,:,3,:] .= I(d)
+    else
+        M = zeros(ComplexF64, 2+N, d, 2+N, d)
+        M[2,:,1,:] .= -Sz
+        M[2+N,:,1+N,:] .= Sz
+        M[2+N,:,2,:] .= Sz
+        for i in 2:N
+            M[i+1,:,i,:] .= I(d)
+        end
+        M[1,:,1,:] .= I(d)
+        M[2+N,:,2+N,:] .= I(d)
+        M[2+N,:,1,:] .= -λ * Sx
+    end
     return M
 end
