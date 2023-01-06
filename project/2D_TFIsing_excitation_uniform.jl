@@ -5,7 +5,7 @@ using Random
 CUDA.allowscalar(false)
 
 Random.seed!(100)
-model = TFIsing(0.5,12,2.5)
+model = TFIsing(0.5,12,3.04438)
 gap = [] 
 D,χ = 2,32
 AL, C, AR = init_canonical_mps(;infolder = "./data/$model/", 
@@ -16,7 +16,7 @@ AL, C, AR = init_canonical_mps(;infolder = "./data/$model/",
 A = AL[:,:,:,1,1]
 # A = init_mps(D = D, χ = χ,
 #                      infolder = "./data/$model/")
-for k in [(kx,pi) for kx in 0:pi/12:pi]
+for k in [(kx,0) for kx in 0:pi/12:0]
     @show k
     Δ, Y, info = @time excitation_spectrum_MPO(k, A, model, 1)
     push!(gap, [k[1],Δ[1]])
