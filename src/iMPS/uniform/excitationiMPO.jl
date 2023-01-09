@@ -45,19 +45,20 @@ end
 function envir_MPO(A, M)
     χ,d,_ = size(A)
     W     = size(M, 1)
-    E = zeros(ComplexF64, χ,W,χ)
-    Ǝ = zeros(ComplexF64, χ,W,χ)
+    atype = _arraytype(A)
+    E = atype == Array ? zeros(ComplexF64, χ,W,χ) : CUDA.zeros(ComplexF64, χ,W,χ)
+    Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ) : CUDA.zeros(ComplexF64, χ,W,χ)
     c,ɔ = env_norm(A)
 
     E[:,W,:] = c
     for i in W-1:-1:1
-        YL = zeros(ComplexF64, χ,χ)
+        YL = atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
         for j in i+1:W
             YL += ein"(abc,db),(ae,edf)->cf"(A,M[j,:,i,:],E[:,j,:],conj(A))
         end
-        if M[i,:,i,:] == I(d)
-            bL = YL - ein"ab,ab->"(YL,ɔ)[] * c
-            E[:,i,:], infoE = linsolve(E->E - ein"abc,(ad,dbe)->ce"(A,E,conj(A)) + ein"ab,ab->"(E, ɔ)[] * c, bL)
+        if i == 1 #if M[i,:,i,:] == I(d)
+            bL = YL - ein"(ab,ab),cd->cd"(YL,ɔ,c)
+            E[:,i,:], infoE = linsolve(E->E - ein"abc,(ad,dbe)->ce"(A,E,conj(A)) + ein"(ab,ab),cd->cd"(E,ɔ,c), bL)
             @assert infoE.converged == 1
         else
             E[:,i,:] = YL
@@ -66,13 +67,13 @@ function envir_MPO(A, M)
 
     Ǝ[:,1,:] = ɔ
     for i in 2:W
-        YR = zeros(ComplexF64, χ,χ)
+        YR = atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
         for j in 1:i-1
             YR += ein"((abc,db),cf),edf->ae"(A,M[i,:,j,:],Ǝ[:,j,:],conj(A))
         end
-        if M[i,:,i,:] == I(d)
-            bR = YR - ein"ab,ab->"(c,YR)[] * ɔ
-            Ǝ[:,i,:], infoƎ = linsolve(Ǝ->Ǝ - ein"(abc,ce),dbe->ad"(A,Ǝ,conj(A)) + ein"ab,ab->"(c, Ǝ)[] * ɔ, bR)
+        if i == W # if M[i,:,i,:] == I(d)
+            bR = YR - ein"(ab,ab),cd->cd"(c,YR,ɔ)
+            Ǝ[:,i,:], infoƎ = linsolve(Ǝ->Ǝ - ein"(abc,ce),dbe->ad"(A,Ǝ,conj(A)) + ein"(ab,ab),cd->cd"(c,Ǝ,ɔ), bR)
             @assert infoƎ.converged == 1
         else
             Ǝ[:,i,:] = YR
@@ -102,7 +103,7 @@ function einLB(W, k, L, B, A, E, M, Ǝ)
     # coef = [3*exp(1.0im*ky) + exp(1.0im*kx - 3.0im*ky), 2*exp(2.0im*ky) + 2*exp(1.0im*kx - 2.0im*ky), exp(3.0im*ky) + 3*exp(1.0im*kx - 1.0im*ky), 4*exp(1.0im*kx)]
     coef = [(W-i)*exp(i*1.0im*ky) + i*exp(1.0im*kx - (W-i)*1.0im*ky) for i in 1:W]
     EMs = sum(collect(Iterators.take(iterated(x->EMmap(x, M, A, A), EM), W)) .* coef)
-    LB, info = linsolve(LB->LB - exp(1.0im * kx) * nth(iterated(x->EMmap(x, M, A, A), LB), W+1) + exp(1.0im * kx) * ein"abc,abc->"(LB,Ǝ)[]*E, EMs)
+    LB, info = linsolve(LB->LB - exp(1.0im * kx) * nth(iterated(x->EMmap(x, M, A, A), LB), W+1) + exp(1.0im * kx) * ein"(abc,abc),def->def"(LB,Ǝ,E), EMs)
     @assert info.converged == 1
     return LB/W
 end
@@ -122,7 +123,7 @@ function einRB(W, k, R, B, A, E, M, Ǝ)
     # coef = [3*exp(-1.0im*ky) + exp(-1.0im*kx + 3.0im*ky), 2*exp(-2.0im*ky) + 2*exp(-1.0im*kx + 2.0im*ky), exp(-3.0im*ky) + 3*exp(-1.0im*kx + 1.0im*ky), 4*exp(-1.0im*kx)]
     coef = [(W-i)*exp(-i*1.0im*ky) + i*exp(-1.0im*kx + (W-i)*1.0im*ky) for i in 1:W]
     MƎs = sum(collect(Iterators.take(iterated(x->MƎmap(x, M, A, A), MƎ), W)) .* coef)
-    RB, info = linsolve(RB->RB - exp(-1.0im * kx) * nth(iterated(x->MƎmap(x, M, A, A), RB), W+1) + exp(-1.0im * kx) * ein"abc,abc->"(E,RB)[]*Ǝ, MƎs)
+    RB, info = linsolve(RB->RB - exp(-1.0im * kx) * nth(iterated(x->MƎmap(x, M, A, A), RB), W+1) + exp(-1.0im * kx) * ein"(abc,abc),def->def"(E,RB,Ǝ), MƎs)
     @assert info.converged == 1
     return RB/W
 end
@@ -189,21 +190,18 @@ function excitation_spectrum_MPO(k, A, model, n::Int = 1;
 
     χ, D, _ = size(A)
     W = model.N
-    M = _arraytype(A)(MPO(model))
+    atype = _arraytype(A)
+    M = atype(MPO(model))
 
     E, Ǝ      = envir_MPO(A, M)
     Ln, Rn    = env_norm(A)
-    sq_Ln     = sqrt(Ln)
-    sq_Rn     = sqrt(Rn)
-    inv_sq_Ln = sq_Ln^-1
-    inv_sq_Rn = sq_Rn^-1
-    VL        = initial_VL(A, Ln)
+    sq_Ln     = sqrt(Array(Ln))
+    sq_Rn     = sqrt(Array(Rn))
+    inv_sq_Ln = atype(sq_Ln^-1)
+    inv_sq_Rn = atype(sq_Rn^-1)
+    VL        = atype(initial_VL(Array(A), Array(Ln)))
 
-    X = zeros(ComplexF64, χ*(D-1), χ)
-    # X = rand(ComplexF64, χ, D, χ)
-    X[1] = 1.0
-    # X /= sqrt(ein"ab,ab->"(X,conj(X))[])
-    
+    X = atype(rand(ComplexF64, χ*(D-1), χ))
     function f(X)
         Bu = ein"((ba,bcd),de),ef->acf"(inv_sq_Ln, VL, X, inv_sq_Rn)
         HB = H_MPO_eff(W, k, A, Bu, E, M, Ǝ)
@@ -212,6 +210,6 @@ function excitation_spectrum_MPO(k, A, model, n::Int = 1;
     end
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = true, maxiter = 100)
     # @assert info.converged == 1
-    Δ .-= real(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A))[])
+    Δ .-= real(Array(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A)))[])
     return Δ, Y, info
 end

@@ -7,9 +7,9 @@ CUDA.allowscalar(false)
 Random.seed!(100)
 model = TFIsing(0.5,12,3.04438)
 gap = [] 
-D,χ = 2,256
+D,χ = 2,64
 AL, C, AR = init_canonical_mps(;infolder = "./data/$model/", 
-                                    atype = Array, 
+                                    atype = CuArray, 
                                     Ni=1,Nj=1,       
                                     D = D, 
                                     χ = χ)
