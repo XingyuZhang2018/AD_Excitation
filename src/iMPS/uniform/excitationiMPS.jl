@@ -20,11 +20,17 @@ export excitation_spectrum
 function env_norm!(A)
     _, c = env_c(A, conj(A))
     _, ɔ = env_ɔ(A, conj(A))
-    # To do: real NixNj norm
-    n = ein"(adij,acbij),(dceij,beij) ->"(c,A,conj(A),ɔ)[]/ein"abij,abij ->"(c, ɔ)[]
-    A ./= sqrt(n)
-    n = ein"abij,abij ->"(c,ɔ)[]
-    c /= n
+    n = ein"abij,abij ->ij"(circshift(c,(0,0,0,-1)),ɔ)
+    Ni,Nj = size(c)[[3,4]]
+    for j in 1:Nj, i in 1:Ni
+        ɔ[:,:,i,j] /= n[i,j]
+    end
+    # @show ein"abij,abij ->ij"(circshift(c,(0,0,0,-1)),ɔ)
+    n = ein"(adij,acbij),(dceij,beij) ->ij"(c,A,conj(A),ɔ)
+    for j in 1:Nj, i in 1:Ni
+        A[:,:,:,i,j] ./= sqrt(n[i,j])
+    end
+    # @show ein"(adij,acbij),(dceij,beij) ->ij"(c,A,conj(A),ɔ)
     return c, ɔ
 end
 

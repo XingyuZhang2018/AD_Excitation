@@ -2,7 +2,7 @@ using TeneT: leftorth, rightorth, LRtoC, ALCtoAC, ACCtoALAR
 
 export vumps
 
-function init_canonical_mps(;infolder = "./data/", 
+function init_canonical_mps(;infolder = "../data/", 
                              atype = Array, 
                              verbose::Bool = true,  
                              Ni::Int = 1,
@@ -29,16 +29,18 @@ function init_canonical_mps(;infolder = "./data/",
     return AL, C, AR
 end
 
-function envir_MPO(AL, AR, M)
+function envir_MPO(AL, AR, C, M)
     atype = _arraytype(M)
     χ,Nx,Ny = size(AL)[[1,4,5]]
     W       = size(M, 1)
 
     E = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
     Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
-    _, c = env_c(AR, conj(AR))
-    _, ɔ = env_ɔ(AL, conj(AL))
+    # _, c = env_c(AR, conj(AR))
+    # _, ɔ = env_ɔ(AL, conj(AL))
 
+    c = circshift(ein"abij,acij->bcij"(conj(C),C), (0,0,0,1)) 
+    ɔ = ein"abij,bcij->acij"(C,conj(C))
     # for y in 1:Ny, x in 1:Nx
     #     ɔ[:,:,x,y] ./= tr(ɔ[:,:,x,y])
     #     c[:,:,x,y] ./= tr(c[:,:,x,y])
@@ -56,7 +58,7 @@ function envir_MPO(AL, AR, M)
         if i == 1 # if M[i,:,i,:] == I(d)
             bL = YL 
             E[:,i,:,:,:], infoE = linsolve(X->circshift(X, (0,0,0,1)) - ein"abcij,(adij,dbeij)->ceij"(AL,X,conj(AL)) + ein"(abij,abij),cdij->cdij"(X, ɔ, E[:,W,:,:,:]), bL)
-            # @assert infoE.converged == 1
+            @assert infoE.converged == 1
         else
             E[:,i,:,:,:] = circshift(YL, (0,0,0,-1))
         end
@@ -74,7 +76,7 @@ function envir_MPO(AL, AR, M)
         if i == W # if M[i,:,i,:] == I(d)
             bR = YR 
             Ǝ[:,i,:,:,:], infoƎ = linsolve(X->circshift(X, (0,0,0,-1)) - ein"(abcij,ceij),dbeij->adij"(AR,X,conj(AR)) + ein"(abij,abij),cdij->cdij"(c, X, Ǝ[:,1,:,:,:]), bR)
-            # @assert infoƎ.converged == 1
+            @assert infoƎ.converged == 1
         else
             Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,1))
         end
@@ -94,7 +96,7 @@ function vumps(model;
                targχ = χ,
                iters::Int = 100,
                tol::Float64 = 1e-8,
-               infolder = "./data/", outfolder = "./data/",
+               infolder = "../data/", outfolder = infolder,
                show_every = Inf,
                atype = Array)
                
@@ -122,10 +124,11 @@ function vumps(model;
     energy = 0
     while err > tol && i < iters
         i += 1
-        E, Ǝ = envir_MPO(AL, AR, MM)
+        E, Ǝ = envir_MPO(AL, AR, C, MM)
         AC = ALCtoAC(AL,C)
         λAC, AC = ACenv(AC, E, MM, Ǝ)
          λC,  C =  Cenv( C, E,     Ǝ)
+        #  @show λAC λC
         energy = sum(λAC - λC)/Nj
         AL, AR, errL, errR = ACCtoALAR(AC, C)
         err = errL + errR

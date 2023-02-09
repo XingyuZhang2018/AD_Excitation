@@ -12,11 +12,18 @@ a ────┬──── c
 f ────┴──── h 
 
 """
-function energy_gs_MPO(A, M)
-    E, Ǝ = envir_MPO(A, M)
-    e = ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A))[]
-    n = ein"abc,abc -> "(E,Ǝ)[]
-    @show e n
+function energy_gs_MPO(A, M, E, Ǝ)
+    # e = ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,A,M,Ǝ,conj(A))[]
+    # n = ein"abcij,abcij -> "(E,Ǝ)[]
+    # e = ein"abcij,abcij -> "(EMmap(EMmap(E, M, A, A), M, A, A), Ǝ)[]
+    # n = ein"abcij,abcij -> "(EMmap(E, M, A, A), Ǝ)[]
+    # e = ein"abcij,abcij -> "(EMmap(E, M, A, A), Ǝ)[]
+    # n = ein"abcij,abcij -> "(E,Ǝ)[]
+    e = ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,A,M,Ǝ,conj(A))[]
+    n = ein"abcij,abcij -> "(circshift(E, (0,0,0,0,1)),Ǝ)[]
+    n1 = ein"abcij,abcij -> "(E,circshift(Ǝ, (0,0,0,0,1)))[]
+    @show e n e-n (e-n)/2 n1
+
     return e-n
 end
 
@@ -44,10 +51,10 @@ end
 #     return E, Ǝ
 # end
 
-function envir_MPO(A, c, ɔ, M)
-    atype = _arraytype(A)
-    χ,d,_,Nx,Ny = size(A)
-    W           = size(M, 1)
+function envir_MPO_uniform(A, M, c, ɔ)
+    atype = _arraytype(M)
+    χ,Nx,Ny = size(A)[[1,4,5]]
+    W       = size(M, 1)
 
     E = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
     Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
@@ -58,13 +65,14 @@ function envir_MPO(A, c, ɔ, M)
         for j in i+1:W
             YL += ein"(abcij,dbij),(aeij,edfij)->cfij"(A,M[j,:,i,:,:,:],E[:,j,:,:,:],conj(A))
         end
-        if M[i,:,i,:] == I(d)
-            bL = YL - ein"abij,abij->"(YL,ɔ)[] * c
+        if i == 1 # if M[i,:,i,:] == I(d)
+            bL = YL 
             E[:,i,:,:,:], infoE = linsolve(X->circshift(X, (0,0,0,1)) - ein"abcij,(adij,dbeij)->ceij"(A,X,conj(A)) + ein"(abij,abij),cdij->cdij"(X, ɔ, E[:,W,:,:,:]), bL)
             @assert infoE.converged == 1
         else
             E[:,i,:,:,:] = circshift(YL, (0,0,0,-1))
         end
+        # E[:,i,:,:,:] = circshift(YL, (0,0,0,1))
     end
 
     Ǝ[:,1,:,:,:] = ɔ
@@ -73,18 +81,27 @@ function envir_MPO(A, c, ɔ, M)
         for j in 1:i-1
             YR += ein"((abcij,dbij),cfij),edfij->aeij"(A,M[i,:,j,:,:,:],Ǝ[:,j,:,:,:],conj(A))
         end
-        if M[i,:,i,:] == I(d)
-            bR = YR - ein"abij,abij->"(c,YR)[] * ɔ
+        if i == W # if M[i,:,i,:] == I(d)
+            bR = YR 
             Ǝ[:,i,:,:,:], infoƎ = linsolve(X->circshift(X, (0,0,0,-1)) - ein"(abcij,ceij),dbeij->adij"(A,X,conj(A)) + ein"(abij,abij),cdij->cdij"(c, X, Ǝ[:,1,:,:,:]), bR)
             @assert infoƎ.converged == 1
         else
             Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,1))
         end
+        # Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,-1))
     end
 
-    # @show ein"ab,ab->"(c,YR)[] ein"ab,ab->"(YL,ɔ)[] ein"ab,ab->"(c,Ǝ[:,3,:])[] ein"ab,ab->"(E[:,1,:],ɔ)[] 
-    # @show ein"(abc,ce),(ad,dbe)->"(A,Ǝ[:,3,:],c,conj(A))[]
     return E, Ǝ
+end
+
+function EMmap(E, M, Au, Ad)
+    EM = ein"((adfij,abcij),dgebij),fghij -> cehij"(E,Au,M,conj(Ad))
+    # circshift(EM, (0,0,0,0,1))
+end
+
+function MƎmap(Ǝ, M, Au, Ad)
+    MƎ = ein"((abcij,cehij),dgebij),fghij -> adfij"(Au,Ǝ,M,conj(Ad))
+    # circshift(MƎ, (0,0,0,0,-1))
 end
 
 """
@@ -97,7 +114,8 @@ end
     ```
 """
 function einLB(k, L, B, A, E, M, Ǝ)
-    LB, info = linsolve(LB->LB - exp(1.0im * k) * ein"((adfij,abcij),dgebij),fghij -> cehij"(LB,A,M,conj(A)) + exp(1.0im * k) * ein"abcij,abcij->"(LB,Ǝ)[]*E, ein"((adfij,abcij),dgebij),fghij -> cehij"(L,B,M,conj(A)))
+    # LB, info = linsolve(LB->LB - exp(1.0im * k) * EMmap(EMmap(LB, M, A, A), M, A, A) + exp(1.0im * k) * ein"(abcij,abcij),defij->defij"(LB,circshift(Ǝ,(0,0,0,0,-1)),E), ein"ij,abcij->abcij"([exp(1.0im * k) 1], EMmap(L, M, B, A)) + exp(1.0im * k) * EMmap(EMmap(L, M, B, A), M, A, A))
+    LB, info = linsolve(LB->circshift(LB, (0,0,0,0,1)) - exp(1.0im * k) * EMmap(LB, M, A, A) + exp(1.0im * k) * ein"(abcij,abcij),defij->defij"(LB,Ǝ,E), exp(1.0im * k) * EMmap(L, M, B, A))
     @assert info.converged == 1
     return LB
 end
@@ -112,7 +130,8 @@ end
     ```
 """
 function einRB(k, R, B, A, E, M, Ǝ)
-    RB, info = linsolve(RB->RB - exp(1.0im *-k) * ein"((abcij,cehij),dgebij),fghij -> adfij"(A,RB,M,conj(A)) + exp(1.0im *-k) * ein"abcij,abcij->"(E,RB)[]*Ǝ, ein"((abcij,cehij),dgebij),fghij -> adfij"(B,R,M,conj(A)))
+    # RB, info = linsolve(RB->RB - exp(1.0im *-k) *  MƎmap(MƎmap(RB, M, A, A), M, A, A) + exp(1.0im *-k) * ein"(abcij,abcij),defij->defij"(circshift(E,(0,0,0,0,-1)),RB,Ǝ), ein"ij,abcij->abcij"([1 exp(1.0im * -k)], MƎmap(R, M, B, A)) + exp(1.0im *-k) * MƎmap(MƎmap(R, M, B, A), M, A, A))
+    RB, info = linsolve(RB->circshift(RB, (0,0,0,0,-1)) - exp(1.0im *-k) * MƎmap(RB, M, A, A) + exp(1.0im *-k) * ein"(abcij,abcij),defij->defij"(E,RB,Ǝ), exp(1.0im *-k) * MƎmap(R, M, B, A))
     @assert info.converged == 1
     return RB
 end
@@ -167,10 +186,10 @@ eindB(A, E, M, Ǝ) = ein"((adfij,abcij),dgebij),cehij->fghij"(E,A,M,Ǝ)
 function H_MPO_eff(k, A, Bu, E, M, Ǝ)
     # 1. B and dB on the same site of M
     HB  = eindB(Bu, E, M, Ǝ)
- 
+    
     # 2. B and dB on different sites of M
-    HB += eindB(A, einLB(k, E, Bu, A, E, M, Ǝ), M, Ǝ) * exp(1.0im * k) +
-          eindB(A, E, M, einRB(k, Ǝ, Bu, A, E, M, Ǝ)) * exp(1.0im *-k)
+    HB += eindB(A, einLB(k, E, Bu, A, E, M, Ǝ), M, Ǝ) +
+          eindB(A, E, M, einRB(k, Ǝ, Bu, A, E, M, Ǝ))
 
     return HB
 end
@@ -180,20 +199,22 @@ end
 
 find at least `n` smallest excitation gaps 
 """
-function excitation_spectrum_MPO(k, model, n::Int = 1;
+function excitation_spectrum_MPO(model, k, n::Int = 1;
                              gs_from = "c",
                              Ni::Int = 1,
                              Nj::Int = 1,
                              χ::Int,
                              atype = Array,
-                             infolder = "./data/")
+                             infolder = "../data/")
 
     infolder = joinpath(infolder, "$model")
-    M = atype(MPO(model))
-    D = size(M, 2)
-    MM= zeros(ComplexF64, (size(M)...,Ni,Nj))
+    Mo = atype(MPO(model))
+    D = size(Mo, 2)
+    N = size(Mo, 1)
+    M = zeros(ComplexF64, (N,D,N,D,Ni,Nj))
     for j in 1:Nj, i in 1:Ni
-        MM[:,:,:,:,i,j] = M
+        # M[:,:,:,:,i,j] = reshape(ein"abcd,cefg->abefdg"(Mo, Mo), N,D^2,N,D^2,1,1)
+        M[:,:,:,:,i,j] = Mo
     end
 
     if gs_from == "c"
@@ -212,8 +233,10 @@ function excitation_spectrum_MPO(k, model, n::Int = 1;
         println("load uniform mps")
     end
 
+    # A = reshape(ein"abc,cde->abde"(A[:,:,:,1,1], A[:,:,:,1,2]), χ,D^2,χ,1,1)
+    # D = D^2
     c, ɔ     = env_norm!(A)
-    E, Ǝ     = envir_MPO(A, c, ɔ, M)
+    E, Ǝ     = envir_MPO_uniform(A, M, c, ɔ)
     sq_c,sq_ɔ,inv_sq_c,inv_sq_ɔ = [similar(c) for _ in 1:4]
     for j in 1:Nj, i in 1:Ni
         sq_c[:,:,i,j]     = sqrt(c[:,:,i,j])
@@ -228,15 +251,25 @@ function excitation_spectrum_MPO(k, model, n::Int = 1;
     X = rand(ComplexF64, χ*(D-1), χ, Ni, Nj)
     # X[1] = 1.0
     # X /= sqrt(ein"ab,ab->"(X,conj(X))[])
+    # E0 = ein"abcij,abcij -> ij"(EMmap(E, M, A, A), Ǝ)
+    E0 = ein"(((adfij,abcij),dgebij),cehij),fghij -> ij"(E,A,M,Ǝ,conj(A))
     
+    # @show E1 E0 
+    # E2 = ein"abcij,abcij -> ij"(EMmap(EMmap(E, M, A, A), M, A, A), Ǝ)
+    # E3 = ein"abcij,abcij -> ij"(E, MƎmap(Ǝ, M, A, A))
+    # E4 = ein"abcij,abcij -> ij"(E, MƎmap(MƎmap(Ǝ, M, A, A), M, A, A))
+    # @show E1 E2 E3 E4
+    # E0 = ein"(((adfij,abcij),dgebij),cehij),fghij -> ij"(E,A,M,Ǝ,conj(A))
+    # energy_gs_MPO(A, M, E, Ǝ)
     function f(X)
         Bu = ein"((baij,bcdij),deij),efij->acfij"(inv_sq_c, VL, X, inv_sq_ɔ)
-        HB = H_MPO_eff(k, A, Bu, E, MM, Ǝ)
+        HB = H_MPO_eff(k, A, Bu, E, M, Ǝ) - ein"(adij,acbij),beij, ij->dceij"(c, Bu, ɔ, E0)
+        # HB = H_MPO_eff(k, A, Bu, E, M, Ǝ)
         HB = ein"((baij,bcdij),acfij),deij->feij"(inv_sq_c,HB,conj(VL),inv_sq_ɔ)
         return HB
     end
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = true, maxiter = 100)
     # @assert info.converged == 1
-    Δ .-= real(ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,A,MM,Ǝ,conj(A))[])
+    # Δ .-= real(ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,A,M,Ǝ,conj(A))[])
     return Δ, Y, info
 end
