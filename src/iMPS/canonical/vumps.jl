@@ -1,4 +1,5 @@
 using TeneT: leftorth, rightorth, LRtoC, ALCtoAC, ACCtoALAR
+using LinearAlgebra: norm
 
 export vumps
 
@@ -29,61 +30,113 @@ function init_canonical_mps(;infolder = "../data/",
     return AL, C, AR
 end
 
-function envir_MPO(AL, AR, C, M)
+function c工map(c, Au, Ad, H)
+    ein"((ad,abc),eb),def->cf"(c,Au,H,conj(Ad))
+end
+
+function 工ɔmap(ɔ, Au, Ad, H)
+    ein"((abc,cf),db),edf->ae"(Au,ɔ,H,conj(Ad))
+end
+
+function left_cyclethrough!(col::Int, E, M, AL)
+    len = size(M,6)
+    for i = 1:len
+        ir = mod1(i+1, len)
+        E[:,col,:,1,ir] .= 0
+        for j = col:-1:1
+            if reduce(|, M[j,:,col,:,1,i] .!= 0)
+                E[:,col,:,1,ir] .+= c工map(E[:,j,:,1,i], AL[:,:,:,1,i], AL[:,:,:,1,i], M[j,:,col,:,1,i])
+            end
+        end
+    end
+end
+
+function right_cyclethrough!(col::Int, Ǝ, M, AR)
+    len = size(M,6)
+    for i = len:-1:1
+        ir = mod1(i-1, len)
+        Ǝ[:,col,:,1,ir] .= 0 
+        for j = col:size(M,1)
+            if reduce(|, M[col,:,j,:,1,i] .!= 0)
+                Ǝ[:,col,:,1,ir] .+= 工ɔmap(Ǝ[:,j,:,1,i], AR[:,:,:,1,i], AR[:,:,:,1,i], M[col,:,j,:,1,i])
+            end
+        end
+    end
+end
+
+function cmap_through(c, Au, Ad)
+    cm = copy(c)
+    for i in 1:size(Au,5)
+        cm .= cmap(cm, Au[:,:,:,1,i], Ad[:,:,:,1,i])
+    end
+    return cm
+end
+
+function ɔmap_through(ɔ, Au, Ad)
+    ɔm = copy(ɔ)
+    for i in size(Au,5):-1:1
+        ɔm .= ɔmap(ɔm, Au[:,:,:,1,i], Ad[:,:,:,1,i])
+    end
+    return ɔm
+end
+
+function canonical_envir_MPO!(E, Ǝ, AL, AR, C, M)
     atype = _arraytype(M)
-    χ,Nx,Ny = size(AL)[[1,4,5]]
+    χ,Ni,Nj = size(AL)[[1,4,5]]
     W       = size(M, 1)
 
-    E = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
-    Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
-    # _, c = env_c(AR, conj(AR))
-    # _, ɔ = env_ɔ(AL, conj(AL))
+    _, c = env_c(AR, conj(AR))
+    _, ɔ = env_ɔ(AL, conj(AL))
+    for y in 1:Nj, x in 1:Ni
+        ɔ[:,:,x,y] ./= tr(ɔ[:,:,x,y])
+        c[:,:,x,y] ./= tr(c[:,:,x,y])
+    end
 
-    c = circshift(ein"abij,acij->bcij"(conj(C),C), (0,0,0,1)) 
-    ɔ = ein"abij,bcij->acij"(C,conj(C))
-    # for y in 1:Ny, x in 1:Nx
-    #     ɔ[:,:,x,y] ./= tr(ɔ[:,:,x,y])
-    #     c[:,:,x,y] ./= tr(c[:,:,x,y])
-    # end
+    # c = circshift(ein"abij,acij->bcij"(conj(C),C), (0,0,0,1)) 
+    # ɔ = ein"abij,cbij->acij"(C,conj(C))
 
     Iχ = atype(I(χ))
-    for y in 1:Ny, x in 1:Nx
-        E[:,W,:,x,y] = Iχ
-    end
-    for i in W-1:-1:1
-        YL = atype == Array ? zeros(ComplexF64, χ,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,χ,Nx,Ny)
-        for j in i+1:W
-            YL += ein"(abcij,dbij),(aeij,edfij)->cfij"(AL,M[j,:,i,:,:,:],E[:,j,:,:,:],conj(AL))
-        end
-        if i == 1 # if M[i,:,i,:] == I(d)
-            bL = YL 
-            E[:,i,:,:,:], infoE = linsolve(X->circshift(X, (0,0,0,1)) - ein"abcij,(adij,dbeij)->ceij"(AL,X,conj(AL)) + ein"(abij,abij),cdij->cdij"(X, ɔ, E[:,W,:,:,:]), bL)
-            @assert infoE.converged == 1
-        else
-            E[:,i,:,:,:] = circshift(YL, (0,0,0,-1))
-        end
-        # E[:,i,:,:,:] = circshift(YL, (0,0,0,1))
-    end
-
-    for y in 1:Ny, x in 1:Nx
-        Ǝ[:,1,:,x,y] = Iχ
-    end
+    E[:,1,:,1,1] .= Iχ
+    Nj>1 && left_cyclethrough!(1, E, M, AL)
     for i in 2:W
-        YR = atype == Array ? zeros(ComplexF64, χ,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,χ,Nx,Ny)
-        for j in 1:i-1
-            YR += ein"((abcij,dbij),cfij),edfij->aeij"(AR,M[i,:,j,:,:,:],Ǝ[:,j,:,:,:],conj(AR))
-        end
-        if i == W # if M[i,:,i,:] == I(d)
-            bR = YR 
-            Ǝ[:,i,:,:,:], infoƎ = linsolve(X->circshift(X, (0,0,0,-1)) - ein"(abcij,ceij),dbeij->adij"(AR,X,conj(AR)) + ein"(abij,abij),cdij->cdij"(c, X, Ǝ[:,1,:,:,:]), bR)
-            @assert infoƎ.converged == 1
+        prev = copy(E[:,i,:,1,1]);
+        E[:,i,:,1,1] .= 0
+        left_cyclethrough!(i, E, M, AL)        
+        if i == W
+            E[:,i,:,1,1], infoE = linsolve(X->X - cmap_through(X, AL, AL) + ein"(ab,ab),cd->cd"(X, ɔ[:,:,1,end], Iχ), E[:,i,:,1,1], prev)
+            @assert infoE.converged == 1
+            Nj>1 && left_cyclethrough!(i, E, M, AL)
+
+            for j in 1:Nj
+                jr = mod1(j-1, Nj)
+                E[:,i,:,1,j] .-= ein"(ab,ab),cd->cd"(E[:,i,:,1,j], ɔ[:,:,1,jr], Iχ)
+            end
         else
-            Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,1))
+            ## To do: M contain I 
+            Nj>1 && left_cyclethrough!(i, E, M, AL)
         end
-        # Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,-1))
     end
 
-    return E, Ǝ
+    Ǝ[:,end,:,1,end] .= Iχ
+    Nj>1 && right_cyclethrough!(W, Ǝ, M, AR)
+    for i in W-1:-1:1
+        prev = copy(Ǝ[:,i,:,1,end])
+        Ǝ[:,i,:,1,end] .= 0
+        right_cyclethrough!(i, Ǝ, M, AR)    
+        if i == 1 # if M[i,:,i,:] == I(d)
+            Ǝ[:,i,:,1,end], infoƎ = linsolve(X->X - ɔmap_through(X, AR, AR) + ein"(ab,ab),cd->cd"(c[:,:,1,1], X, Iχ), Ǝ[:,i,:,1,end], prev)
+            @assert infoƎ.converged == 1
+            Nj>1 && right_cyclethrough!(i, Ǝ, M, AR)
+
+            for j in 1:Nj
+                jr = mod1(j+1, Nj)
+                Ǝ[:,i,:,1,j] .-= ein"(ab,ab),cd->cd"(c[:,:,1,jr], Ǝ[:,i,:,1,j], Iχ)
+            end
+        else
+            ## To do: M contain I 
+            Nj>1 && right_cyclethrough!(i, Ǝ, M, AR)
+        end
+    end
 end
 
 """
@@ -100,12 +153,12 @@ function vumps(model;
                show_every = Inf,
                atype = Array)
                
-    M = atype(MPO(model))
-    D = size(M,2)
-    W = size(M,1)
-    MM= zeros(ComplexF64, (size(M)...,Ni,Nj))
+    Mo = atype(MPO(model))
+    D = size(Mo,2)
+    W = size(Mo,1)
+    M = zeros(ComplexF64, (size(Mo)...,Ni,Nj))
     for j in 1:Nj, i in 1:Ni
-        MM[:,:,:,:,i,j] = M
+        M[:,:,:,:,i,j] = Mo
     end
     
      infolder = joinpath( infolder, "$model")
@@ -119,16 +172,22 @@ function vumps(model;
                                     D = D, 
                                     χ = χ,
                                     targχ = targχ)
+
+    E = atype == Array ? zeros(ComplexF64, χ,W,χ,Ni,Nj) : CUDA.zeros(ComplexF64, χ,W,χ,Ni,Nj)
+    Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ,Ni,Nj) : CUDA.zeros(ComplexF64, χ,W,χ,Ni,Nj)
     err = Inf
     i = 0
     energy = 0
     while err > tol && i < iters
         i += 1
-        E, Ǝ = envir_MPO(AL, AR, C, MM)
+        canonical_envir_MPO!(E, Ǝ, AL, AR, C, M)
         AC = ALCtoAC(AL,C)
-        λAC, AC = ACenv(AC, E, MM, Ǝ)
-         λC,  C =  Cenv( C, E,     Ǝ)
-        #  @show λAC λC
+        λAC, AC = ACenv(AC, E, M, Ǝ)
+         λC,  C =  Cenv( C, E,    Ǝ)
+         @show λAC λC
+        # for y in 1:Nj, x in 1:Ni
+        #     C[:,:,x,y] ./= sqrt(ein"ab,ab->"(C[:,:,x,y], conj(C[:,:,x,y]))[])
+        # end
         energy = sum(λAC - λC)/Nj
         AL, AR, errL, errR = ACCtoALAR(AC, C)
         err = errL + errR

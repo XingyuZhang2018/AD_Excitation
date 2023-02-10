@@ -31,9 +31,13 @@ c   │  =   λc c             c
 └── Ad─       └──        d──┴──e                
 ```
 """
-function cmap(ci, Aui, Adi)
+function cmap(ci::AbstractArray{T, 3}, Aui, Adi) where T
     cij = ein"(adi,acbi),dcei->bei"(ci,Aui,Adi)
     circshift(cij, (0,0,1))
+end
+
+function cmap(c::AbstractArray{T, 2}, Au, Ad) where T
+    ein"(ad,acb),dce->be"(c,Au,conj(Ad))
 end
 
 """
@@ -45,9 +49,13 @@ end
 ─ Ad──┘       ──┘        d──┴──e 
 ```
 """
-function ɔmap(ɔi, Aui, Adi)
+function ɔmap(ɔi::AbstractArray{T, 3}, Aui, Adi) where T
     ɔij = ein"(acbi,bei),dcei->adi"(Aui,ɔi,Adi)
     circshift(ɔij, (0,0,-1))
+end
+
+function ɔmap(ɔ::AbstractArray{T, 2}, Au, Ad) where T
+    ein"(acb,be),dce->ad"(Au,ɔ,conj(Ad))
 end
 
 function cint(A)

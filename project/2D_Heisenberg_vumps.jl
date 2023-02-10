@@ -8,7 +8,7 @@ model = Heisenberg(0.5,1,1.0,1.0,1.0)
 energy = [] 
 for χ in 2 .^ (3:3)
     @show χ
-    e = @time vumps(model; Nj=2, χ=χ, iters = 10, show_every = 1, tol = 1e-8, atype = Array)
+    e = @time vumps(model; Nj=2, χ=χ, iters = 100, show_every = 1, tol = 1e-8, atype = Array)
     push!(energy, e)
 end
 print("{")
