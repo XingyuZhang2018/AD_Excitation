@@ -28,15 +28,20 @@ function envir_MPO_exci(U, D, C, M; type = "RL")
     E = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
     Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
 
-    if type == "RL"
-        c = circshift(ein"abij->baij"(C), (0,0,0,1))
-        ɔ = ein"abij->baij"(conj(C))
-    else
-        c = circshift(ein"abij->baij"(conj(C)), (0,0,0,1))
-        ɔ = ein"abij->baij"(C)
+    # if type == "RL"
+    #     c = circshift(ein"abij->baij"(C), (0,0,0,1))
+    #     ɔ = ein"abij->baij"(conj(C))
+    # else
+    #     c = circshift(conj(C), (0,0,0,1))
+    #     ɔ = C
+    # end
+    _, c = env_c(U, conj(D))
+    _, ɔ = env_ɔ(U, conj(D))
+    for y in 1:Ny, x in 1:Nx
+        yr = mod1(y+1, Ny) 
+        ɔ[:,:,x,y] ./= ein"ab,ab->"(c[:,:,x,yr],ɔ[:,:,x,y])[]
+    #     # @show ein"ab,ab->"(c[:,:,x,yr],ɔ[:,:,x,y])[]
     end
-    # _, c = env_c(U, conj(D))
-    # _, ɔ = env_ɔ(U, conj(D))
     E[:,W,:,:,:] = c
     for i in W-1:-1:1
         YL = atype == Array ? zeros(ComplexF64, χ,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,χ,Nx,Ny)
@@ -44,11 +49,11 @@ function envir_MPO_exci(U, D, C, M; type = "RL")
             YL += ein"(abcij,dbij),(aeij,edfij)->cfij"(U,M[j,:,i,:,:,:],E[:,j,:,:,:],conj(D))
         end
         if i == 1 #if M[i,:,i,:] == I(d)
-            bL = YL - ein"(abij,abij),cdij->cdij"(YL,ɔ,c) 
-            E[:,i,:,:,:], infoE = linsolve(X->circshift(X, (0,0,0,1)) - ein"abcij,(adij,dbeij)->ceij"(U,X,conj(D)) + ein"(abij,abij),cdij->cdij"(X, ɔ, circshift(c, (0,0,0,1))), bL, E[:,i,:,:,:])
+            bL = YL
+            E[:,i,:,:,:], infoE = linsolve(X->circshift(X, (0,0,0,-1)) - ein"abcij,(adij,dbeij)->ceij"(U,X,conj(D)) + ein"(abij,abij),cdij->cdij"(circshift(X, (0,0,0,-1)), ɔ, circshift(c, (0,0,0,-1))), bL, E[:,i,:,:,:])
             @assert infoE.converged == 1
         else
-            E[:,i,:,:,:] = circshift(YL, (0,0,0,-1))
+            E[:,i,:,:,:] = circshift(YL, (0,0,0,1))
         end
     end
 
@@ -60,10 +65,10 @@ function envir_MPO_exci(U, D, C, M; type = "RL")
         end
         if i == W # if M[i,:,i,:] == I(d)
             bR = YR 
-            Ǝ[:,i,:,:,:], infoƎ = linsolve(X->circshift(X, (0,0,0,-1)) - ein"(abcij,ceij),dbeij->adij"(U,X,conj(D)) + ein"(abij,abij),cdij->cdij"(c, X, circshift(ɔ, (0,0,0,-1))), bR, Ǝ[:,i,:,:,:])
+            Ǝ[:,i,:,:,:], infoƎ = linsolve(X->circshift(X, (0,0,0,1)) - ein"(abcij,ceij),dbeij->adij"(U,X,conj(D)) + ein"(abij,abij),cdij->cdij"(c, circshift(X, (0,0,0,1)), circshift(ɔ, (0,0,0,-1))), bR, Ǝ[:,i,:,:,:])
             @assert infoƎ.converged == 1
         else
-            Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,1))
+            Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,-1))
         end
     end
 
@@ -80,7 +85,8 @@ end
     ```
 """
 function einEB(k, ELL, B, AL, AR, ERL, ƎRL, M)
-    LB, info = linsolve(LB->circshift(LB, (0,0,0,0,1)) - exp(1.0im * k) * EMmap(LB, M, AR, AL) + exp(1.0im * k) * ein"(abcij,abcij),defij->defij"(LB,ƎRL,circshift(ERL, (0,0,0,0,1))), exp(1.0im * k) * EMmap(ELL, M, B, AL))
+    LB, info = linsolve(LB->LB - circshift(ein"ij,abcij->abcij"([1 exp(1.0im * k * 2)], EMmap(LB, M, AR, AL)), (0,0,0,0,1)) + exp(1.0im * k) * ein"(abcij,abcij),defij->defij"(LB,circshift(ƎRL, (0,0,0,0,1)),ERL), circshift(ein"ij,abcij->abcij"([1 exp(1.0im * k * 2)], EMmap(ELL, M, B, AL)), (0,0,0,0,1)))
+    # + EMmap(EMmap(ELL, M, B, AL), M, circshift(AR,(0,0,0,0,-1)), circshift(AL,(0,0,0,0,-1)))
     @assert info.converged == 1
     return LB
 end
@@ -95,7 +101,8 @@ end
     ```
 """
 function einBƎ(k, ƎRR, B, AL, AR, ELR, ƎLR, M)
-    RB, info = linsolve(RB->circshift(RB, (0,0,0,0,-1)) - exp(1.0im *-k) * MƎmap(RB, M, AL, AR) + exp(1.0im *-k) * ein"(abcij,abcij),defij->defij"(ELR,RB,circshift(ƎLR, (0,0,0,0,-1))), exp(1.0im *-k) * MƎmap(ƎRR, M, B, AR))
+    RB, info = linsolve(RB->RB - circshift(ein"ij,abcij->abcij"([exp(1.0im *-k * 2) 1], MƎmap(RB, M, AL, AR)), (0,0,0,0,-1)) + exp(1.0im *-k) * ein"(abcij,abcij),defij->defij"(circshift(ELR,(0,0,0,0,-1)),RB,ƎLR), circshift(ein"ij,abcij->abcij"([exp(1.0im *-k * 2) 1], MƎmap(ƎRR, M, B, AR)), (0,0,0,0,-1)))
+    # + MƎmap(MƎmap(ƎRR, M, B, AR), M, circshift(AL,(0,0,0,0,1)), circshift(AR,(0,0,0,0,1)))
     @assert info.converged == 1
     return RB
 end
@@ -187,7 +194,7 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
 
     X = atype(rand(ComplexF64, χ*(D-1), χ, Ni, Nj))
     E0 = ein"(((adfij,abcij),dgebij),cehij),fghij -> ij"(ELL,AC,M,ƎRR,conj(AC))
-
+    # @show E0
     function f(X)
         Bu = ein"abcij,cdij->abdij"(VL, X)
         HB = H_canonical_eff(k, AL, AR, Bu, M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR) - ein"abcij, ij->abcij"(Bu, E0)
@@ -195,7 +202,6 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
         return HB
     end
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = false, maxiter = 100)
-    # @assert info.converged == 1
-    # Δ .-= Array(ein"(((adfij,abcij),dgebij),cehij),fghij -> "(circshift(ein"((adfij,abcij),dgebij),fghij -> cehij"(E,AL,MM,conj(AL)),(0,0,0,0,1)),AC,MM,Ǝ,conj(AC)))[] 
+    info.converged == 1 && @warn("eigsolve not converged")
     return real(Δ), Y, info
 end

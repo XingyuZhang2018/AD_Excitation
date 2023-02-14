@@ -1,4 +1,4 @@
-using TeneT: leftorth, rightorth, LRtoC, ALCtoAC, ACCtoALAR
+using TeneT: leftorth, rightorth, LRtoC, ALCtoAC, ACCtoALAR, rightorth
 
 export vumps
 
@@ -31,54 +31,53 @@ end
 
 function envir_MPO(AL, AR, C, M)
     atype = _arraytype(M)
-    χ,Nx,Ny = size(AL)[[1,4,5]]
+    χ,Ni,Nj = size(AL)[[1,4,5]]
     W       = size(M, 1)
 
-    E = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
-    Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,W,χ,Nx,Ny)
-    # _, c = env_c(AR, conj(AR))
-    # _, ɔ = env_ɔ(AL, conj(AL))
-
-    c = circshift(ein"abij,acij->bcij"(conj(C),C), (0,0,0,1)) 
-    ɔ = ein"abij,bcij->acij"(C,conj(C))
-    # for y in 1:Ny, x in 1:Nx
-    #     ɔ[:,:,x,y] ./= tr(ɔ[:,:,x,y])
-    #     c[:,:,x,y] ./= tr(c[:,:,x,y])
-    # end
+    E = atype == Array ? zeros(ComplexF64, χ,W,χ,Ni,Nj) : CUDA.zeros(ComplexF64, χ,W,χ,Ni,Nj)
+    Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ,Ni,Nj) : CUDA.zeros(ComplexF64, χ,W,χ,Ni,Nj)
+    _, c = env_c(AR, conj(AR))
+    _, ɔ = env_ɔ(AL, conj(AL))
+    for y in 1:Nj, x in 1:Ni
+        ɔ[:,:,x,y] ./= tr(ɔ[:,:,x,y])
+        c[:,:,x,y] ./= tr(c[:,:,x,y])
+    end
+    # c = circshift(ein"abij,acij->bcij"(conj(C),C), (0,0,0,1)) 
+    # ɔ = ein"abij,cbij->acij"(C,conj(C))
 
     Iχ = atype(I(χ))
-    for y in 1:Ny, x in 1:Nx
+    for y in 1:Nj, x in 1:Ni
         E[:,W,:,x,y] = Iχ
     end
     for i in W-1:-1:1
-        YL = atype == Array ? zeros(ComplexF64, χ,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,χ,Nx,Ny)
+        YL = atype == Array ? zeros(ComplexF64, χ,χ,Ni,Nj) : CUDA.zeros(ComplexF64, χ,χ,Ni,Nj)
         for j in i+1:W
             YL += ein"(abcij,dbij),(aeij,edfij)->cfij"(AL,M[j,:,i,:,:,:],E[:,j,:,:,:],conj(AL))
         end
         if i == 1 # if M[i,:,i,:] == I(d)
             bL = YL 
-            E[:,i,:,:,:], infoE = linsolve(X->circshift(X, (0,0,0,1)) - ein"abcij,(adij,dbeij)->ceij"(AL,X,conj(AL)) + ein"(abij,abij),cdij->cdij"(X, ɔ, E[:,W,:,:,:]), bL)
+            E[:,i,:,:,:], infoE = linsolve(X->circshift(X, (0,0,0,-1)) - ein"abcij,(adij,dbeij)->ceij"(AL,X,conj(AL)) + ein"(abij,abij),cdij->cdij"(circshift(X, (0,0,0,-1)), ɔ, E[:,W,:,:,:]), bL)
             @assert infoE.converged == 1
         else
-            E[:,i,:,:,:] = circshift(YL, (0,0,0,-1))
+            E[:,i,:,:,:] = circshift(YL, (0,0,0,1))
         end
         # E[:,i,:,:,:] = circshift(YL, (0,0,0,1))
     end
 
-    for y in 1:Ny, x in 1:Nx
+    for y in 1:Nj, x in 1:Ni
         Ǝ[:,1,:,x,y] = Iχ
     end
     for i in 2:W
-        YR = atype == Array ? zeros(ComplexF64, χ,χ,Nx,Ny) : CUDA.zeros(ComplexF64, χ,χ,Nx,Ny)
+        YR = atype == Array ? zeros(ComplexF64, χ,χ,Ni,Nj) : CUDA.zeros(ComplexF64, χ,χ,Ni,Nj)
         for j in 1:i-1
             YR += ein"((abcij,dbij),cfij),edfij->aeij"(AR,M[i,:,j,:,:,:],Ǝ[:,j,:,:,:],conj(AR))
         end
         if i == W # if M[i,:,i,:] == I(d)
             bR = YR 
-            Ǝ[:,i,:,:,:], infoƎ = linsolve(X->circshift(X, (0,0,0,-1)) - ein"(abcij,ceij),dbeij->adij"(AR,X,conj(AR)) + ein"(abij,abij),cdij->cdij"(c, X, Ǝ[:,1,:,:,:]), bR)
+            Ǝ[:,i,:,:,:], infoƎ = linsolve(X->circshift(X, (0,0,0,1)) - ein"(abcij,ceij),dbeij->adij"(AR,X,conj(AR)) + ein"(abij,abij),cdij->cdij"(c, circshift(X, (0,0,0,1)), Ǝ[:,1,:,:,:]), bR)
             @assert infoƎ.converged == 1
         else
-            Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,1))
+            Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,-1))
         end
         # Ǝ[:,i,:,:,:] = circshift(YR, (0,0,0,-1))
     end
@@ -132,10 +131,21 @@ function vumps(model;
         energy = sum(λAC - λC)/Nj
         AL, AR, errL, errR = ACCtoALAR(AC, C)
         err = errL + errR
+        # _, C = env_ɔ(AL, conj(AR))
+        # for y in 1:Nj, x in 1:Ni
+        #     yr = mod1(y+1, Nj) 
+        #     C[:,:,x,y] ./= ein"ab,ab->"(C[:,:,x,yr],C[:,:,x,y])[]
+        # end
         (i % show_every) == 0 && println("vumps@$i err = $err energy = $energy")
         save(out_chkp_file, "ALCAR", map(Array, (AL, C, AR)))
     end
 
+    # _, C = env_ɔ(AL, conj(AR))
+    # for y in 1:Nj, x in 1:Ni
+    #     yr = mod1(y+1, Nj) 
+    #     C[:,:,x,y] ./= ein"ab,ab->"(conj(C[:,:,x,y]),C[:,:,x,y])[]
+    # end
+    save(out_chkp_file, "ALCAR", map(Array, (AL, C, AR)))
     println("vumps done@$i err = $err energy = $energy")
     return energy
 end
