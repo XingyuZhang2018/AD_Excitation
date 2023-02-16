@@ -8,9 +8,9 @@ using Test
 @testset "envir_MPO" begin
     D,χ = 2,16
     model = TFIsing(0.5, 1.0)
-    key = D,χ,"./data/$model/","./data/$model/"
+    key = D,χ,"../data/$model/","../data/$model/"
     A = init_mps(D = D, χ = χ,
-                 infolder = "./data/$model/")
+                 infolder = "../data/$model/")
     M = MPO(model)
     eMPO = energy_gs_MPO(A, M)
 
@@ -22,9 +22,9 @@ end
 @testset "envir_MPO" begin
     D,χ = 3,16
     model = Heisenberg(1.0)
-    key = D,χ,"./data/$model/","./data/$model/"
+    key = D,χ,"../data/$model/","../data/$model/"
     A = init_mps(D = D, χ = χ,
-                 infolder = "./data/$model/")
+                 infolder = "../data/$model/")
     M = MPO(model)
     eMPO = energy_gs_MPO(A, M)
 
@@ -37,7 +37,7 @@ end
     Random.seed!(100)
     D,χ = 2,4
     model = Heisenberg(0.5,1,1.0,-1.0,-1.0)
-    AL, C, AR = init_canonical_mps(;infolder =  "./data/$model/", 
+    AL, C, AR = init_canonical_mps(;infolder =  "../data/$model/", 
                                     atype = Array, 
                                     Ni=1,Nj=2,       
                                     D = D, 
@@ -105,7 +105,7 @@ end
     model = TFIsing(0.5, 1.0)
     H = hamiltonian(model)
     A = init_mps(D = D, χ = χ,
-                infolder = "./data/$model/")
+                infolder = "../data/$model/")
     
     k = pi
     Δ1, v1, info = @time excitation_spectrum_MPO(k, A, model, 1)
@@ -118,7 +118,7 @@ end
     Random.seed!(100)
     D,χ = 2,8
     model = Heisenberg(0.5,1,1.0,-1.0,-1.0)
-    AL, C, AR = init_canonical_mps(;infolder =  "./data/$model/", 
+    AL, C, AR = init_canonical_mps(;infolder =  "../data/$model/", 
                                     atype = Array, 
                                     Ni=1,Nj=1,       
                                     D = D, 
@@ -165,9 +165,9 @@ end
     model = Heisenberg(0.5,4,1.0,-1.0,-1.0)
     # H = hamiltonian(model)
     # A = init_mps(D = D, χ = χ,
-    #             infolder = "./data/$model/")
+    #             infolder = "../data/$model/")
     # A = reshape(A, (size(A)...,1,1))
-    AL, C, AR = init_canonical_mps(;infolder = "./data/$model/", 
+    AL, C, AR = init_canonical_mps(;infolder = "../data/$model/", 
                                     atype = Array, 
                                     Ni=1,Nj=1,       
                                     D = D, 

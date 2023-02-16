@@ -10,7 +10,7 @@ using Test
     D,χ = 2,2
     model = Heisenberg()
     A = init_mps(D = D, χ = χ,
-                infolder = "./data/$model/")
+                infolder = "../data/$model/")
     
     L_n, R_n = env_norm(A)
     @test ein"ab,ab->"(L_n, R_n)[]                      ≈ 1
@@ -24,7 +24,7 @@ end
     D,χ = 2,2
     model = Heisenberg()
     A = init_mps(D = D, χ = χ,
-                infolder = "./data/$model/")
+                infolder = "../data/$model/")
     Bm = zeros(ComplexF64, (D-1)*χ^2, D*χ^2)
     L_n, R_n = env_norm(A)
     Bs = initial_excitation(A, L_n, R_n)
@@ -44,7 +44,7 @@ end
     D,χ = 2,2
     model = Heisenberg()
     A = init_mps(D = D, χ = χ,
-                infolder = "./data/$model/")
+                infolder = "../data/$model/")
     
     L_n, R_n = env_norm(A)
     k = 1.0
@@ -79,7 +79,7 @@ end
     model = Heisenberg(0.5)
     H = hamiltonian(model)
     A = init_mps(D = D, χ = χ,
-                infolder = "./data/$model/")
+                infolder = "../data/$model/")
     H-= energy_gs(A, H) * ein"ab,cd->abcd"(I(D),I(D))
 
     M         = χ^2*(D-1)
@@ -135,7 +135,7 @@ end
     model = Heisenberg(1.0)
     H = hamiltonian(model)
     A = init_mps(D = D, χ = χ,
-                infolder = "./data/$model/")
+                infolder = "../data/$model/")
     
     k = pi
     Δ, v, info = @time excitation_spectrum(k, A, model, 1)

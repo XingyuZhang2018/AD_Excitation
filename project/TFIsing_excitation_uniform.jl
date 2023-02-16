@@ -37,7 +37,7 @@ function parse_commandline()
         "--folder"
             help = "folder for output"
             arg_type = String
-            default = "./data/"
+            default = "../data/"
     end
 
     return parse_args(s)

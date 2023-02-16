@@ -12,7 +12,7 @@ using OMEinsum
     for Δ in 1.0:0.2:2.0
         model = XXZ(Δ)
         A = init_mps(D = D, χ = χ,
-                     infolder = "./data/$model/")
+                     infolder = "../data/$model/")
         Δ, = excitation_spectrum(k, A, model)
         push!(gap1,real(Δ[1]))
     end
@@ -27,7 +27,7 @@ end
         @show k
         model = XXZ(1.0)
         A = init_mps(D = D, χ = χ,
-                     infolder = "./data/$model/")
+                     infolder = "../data/$model/")
         Δ, = excitation_spectrum(k, A, model, 30)
         push!(s1,real(Δ))
     end
@@ -50,7 +50,7 @@ end
     for k in 0:pi/12:0
         model = Heisenberg(0.5,1,1.0,-1.0,-1.0)
         A = init_mps(D = D, χ = χ,
-                     infolder = "./data/$model/")
+                     infolder = "../data/$model/")
         Δ, = @time excitation_spectrum(k, A, Heisenberg(0.5,1,1.0,1.0,1.0), 10)
         push!(s1,real(Δ))
     end
@@ -73,7 +73,7 @@ end
     for k in pi:pi/24:pi
         model = Heisenberg(1.0)
         A = init_mps(D = D, χ = χ,
-                     infolder = "./data/$model/")
+                     infolder = "../data/$model/")
         Δ, = @time excitation_spectrum(k, A, model, 2)
         push!(s1,real(Δ))
     end
@@ -96,7 +96,7 @@ end
     for k in 0:pi/12:0
         model = TFIsing(1/2,1,1.0)
         A = init_mps(D = D, χ = χ,
-                     infolder = "./data/$model/")
+                     infolder = "../data/$model/")
         Δ, = @time excitation_spectrum(k, A, model, 1)
         push!(s1,real(Δ))
     end
@@ -119,9 +119,9 @@ end
     for k in 0:pi/12:0
         model = TFIsing(1/2, 1, 1.0)
         A = init_mps(D = D, χ = χ,
-                     infolder = "./data/$model/")
+                     infolder = "../data/$model/")
 
-        # AL, C, AR = init_canonical_mps(;infolder =  "./data/$model/", 
+        # AL, C, AR = init_canonical_mps(;infolder =  "../data/$model/", 
         #                                 atype = atype, 
         #                                 Ni=1,Nj=2,       
         #                                 D = D, 

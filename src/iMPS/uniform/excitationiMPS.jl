@@ -324,7 +324,7 @@ end
 find at least `n` smallest excitation gaps 
 """
 function excitation_spectrum(k, A, model, n::Int = 1;
-                             infolder = "./data/", outfolder = "./data/")
+                             infolder = "../data/", outfolder = "../data/")
      infolder = joinpath( infolder, "$model")
     outfolder = joinpath(outfolder, "$model")
 

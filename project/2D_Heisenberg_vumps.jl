@@ -6,7 +6,7 @@ CUDA.allowscalar(false)
 Random.seed!(100)
 model = Heisenberg(0.5,4,1.0,-1.0,-1.0)
 energy = [] 
-for χ in 2 .^ (6:6)
+for χ in 2 .^ (4:4)
     @show χ
     e = @time vumps(model; χ=χ, iters = 100, show_every = 1, tol = 1e-8, atype = Array)
     push!(energy, e)
