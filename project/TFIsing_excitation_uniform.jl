@@ -2,6 +2,7 @@ using ArgParse
 using Random
 using AD_Excitation
 using AD_Excitation: init_canonical_mps
+using CUDA
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -16,10 +17,10 @@ function parse_commandline()
             arg_type = Float64
             required = true
         "--kx"
-            arg_type = Int
+            arg_type = Float64
             required = true
         "--ky"
-            arg_type = Int
+            arg_type = Float64
             required = true
         "--N"
             help = "howmany state"
@@ -55,7 +56,7 @@ function main()
     folder = parsed_args["folder"]
     model = TFIsing(0.5,W,λ)
     AL, C, AR = init_canonical_mps(;infolder = "$folder/$model/", 
-                                    atype = Array, 
+                                    atype = CuArray, 
                                     Ni=1,Nj=1,       
                                     D = D, 
                                     χ = χ)
