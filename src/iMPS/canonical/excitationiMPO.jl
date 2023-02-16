@@ -154,7 +154,7 @@ find at least `n` smallest excitation gaps
 function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
                                            χ::Int = 8,
                                            atype = Array,
-                                           infolder = "./data/", outfolder = "./data/")
+                                           infolder = "../data/", outfolder = "../data/")
      infolder = joinpath( infolder, "$model")
     outfolder = joinpath(outfolder, "$model")
 

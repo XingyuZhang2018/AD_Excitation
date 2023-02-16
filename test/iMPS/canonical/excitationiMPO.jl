@@ -19,7 +19,7 @@ end
     Random.seed!(100)
     D,χ = 2,4
     model = TFIsing(0.5, 1.0)
-    infolder = "./data/$model/"
+    infolder = "../data/$model/"
     AL, C, AR = init_canonical_mps(;infolder = infolder, 
                                     atype = Array,        
                                     D = D, 

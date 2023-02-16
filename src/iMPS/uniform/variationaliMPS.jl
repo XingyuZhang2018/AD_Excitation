@@ -4,7 +4,7 @@ using Optim, LineSearches
 using Zygote
 export init_mps, optimizeiMPS
 
-function init_mps(;infolder = "./data/", 
+function init_mps(;infolder = "../data/", 
                     atype = Array, 
                     verbose::Bool = true,        
                     D::Int = 2, 
@@ -67,7 +67,7 @@ end
 
 function optimizeiMPS(A; 
         model = Heisenberg(), 
-        infolder = "./data/", outfolder = "./data/", 
+        infolder = "../data/", outfolder = "../data/", 
         optimmethod = LBFGS(m = 20), 
         verbose= true, savefile = true,
         f_tol::Real = 1e-6, 
@@ -94,7 +94,7 @@ end
 
 function optimizeiMPS_MPO(A; 
         model = Heisenberg(), 
-        infolder = "./data/", outfolder = "./data/", 
+        infolder = "../data/", outfolder = "../data/", 
         optimmethod = LBFGS(m = 20), 
         verbose= true, savefile = true,
         f_tol::Real = 1e-6, 

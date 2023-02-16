@@ -2,7 +2,7 @@ using TeneT: leftorth, rightorth, LRtoC, ALCtoAC, ACCtoALAR
 
 export vumps
 
-function init_canonical_mps(;infolder = "./data/", 
+function init_canonical_mps(;infolder = "../data/", 
                              atype = Array, 
                              verbose::Bool = true,  
                              Ni::Int = 1,
@@ -94,7 +94,7 @@ function vumps(model;
                targχ = χ,
                iters::Int = 100,
                tol::Float64 = 1e-8,
-               infolder = "./data/", outfolder = "./data/",
+               infolder = "../data/", outfolder = "../data/",
                show_every = Inf,
                atype = Array)
                

@@ -15,7 +15,7 @@ using Zygote
     for χ in 2 .^ (5:5)
         @show χ
         A = init_mps(D = D, χ = χ,
-                     infolder = "./data/$model/")
+                     infolder = "../data/$model/")
 
         A, e = optimizeiMPS(A; 
                             model = model,
@@ -32,7 +32,7 @@ end
     for χ in 2 .^ (4:4)
         @show χ
         A = init_mps(D = D, χ = χ,
-                     infolder = "./data/$model/")
+                     infolder = "../data/$model/")
 
         A, e = optimizeiMPS(A; 
                             model = model,
@@ -49,7 +49,7 @@ end
     for χ in 2 .^ (4:4)
         @show χ
         A = init_mps(D = D, χ = χ,
-                     infolder = "./data/$model/")
+                     infolder = "../data/$model/")
 
         A, e = optimizeiMPS(A; 
                             model = model,
@@ -65,7 +65,7 @@ end
     for Δ in 1.0:0.2:2.0
         model = XXZ(Δ)
         A = init_mps(D = D, χ = χ,
-                     infolder = "./data/$model/")
+                     infolder = "../data/$model/")
 
         A, e = optimizeiMPS(A; 
                             model = model,
