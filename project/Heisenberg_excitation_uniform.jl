@@ -12,8 +12,16 @@ function parse_commandline()
             help = "helix width"
             arg_type = Int
             required = true
-        "--lambda"
-            help = "TFIsing transverse field"
+        "--Jx"
+            help = "coupling Jx"
+            arg_type = Float64
+            required = true
+        "--Jy"
+            help = "coupling Jy"
+            arg_type = Float64
+            required = true
+        "--Jz"
+            help = "coupling Jz"
             arg_type = Float64
             required = true
         "--kx"
@@ -47,14 +55,16 @@ function main()
     parsed_args = parse_commandline()
     Random.seed!(100)
     W = parsed_args["W"]
-    λ = parsed_args["lambda"]
+    Jx = parsed_args["Jx"]
+    Jy = parsed_args["Jy"]
+    Jz = parsed_args["Jz"]
     N = parsed_args["N"]
     kx = parsed_args["kx"]
     ky = parsed_args["ky"]
     D = parsed_args["D"]
     χ = parsed_args["chi"]
     folder = parsed_args["folder"]
-    model = TFIsing(0.5,W,λ)
+    model = Heisenberg(0.5,W,Jx,Jy,Jz)
     AL, C, AR = init_canonical_mps(;infolder = "$folder/$model/", 
                                     atype = CuArray, 
                                     Ni=1,Nj=1,       
