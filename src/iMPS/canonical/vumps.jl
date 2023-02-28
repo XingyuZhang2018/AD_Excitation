@@ -54,7 +54,8 @@ function envir_MPO(AL, AR, M)
             YL += ein"(abcij,dbij),(aeij,edfij)->cfij"(AL,M[j,:,i,:,:,:],E[:,j,:,:,:],conj(AL))
         end
         if i == 1 # if M[i,:,i,:] == I(d)
-            bL = YL 
+            # bL = YL - ein"(abij,abij),cdij->cdij"(YL,ɔ,E[:,W,:,:,:]) 
+            bL = YL
             E[:,i,:,:,:], infoE = linsolve(X->circshift(X, (0,0,0,1)) - ein"abcij,(adij,dbeij)->ceij"(AL,X,conj(AL)) + ein"(abij,abij),cdij->cdij"(X, ɔ, E[:,W,:,:,:]), bL)
             @assert infoE.converged == 1
         else
@@ -72,7 +73,8 @@ function envir_MPO(AL, AR, M)
             YR += ein"((abcij,dbij),cfij),edfij->aeij"(AR,M[i,:,j,:,:,:],Ǝ[:,j,:,:,:],conj(AR))
         end
         if i == W # if M[i,:,i,:] == I(d)
-            bR = YR 
+            # bR = YR - ein"(abij,abij),cdij->cdij"(c,YR,Ǝ[:,1,:,:,:])
+            bR = YR
             Ǝ[:,i,:,:,:], infoƎ = linsolve(X->circshift(X, (0,0,0,-1)) - ein"(abcij,ceij),dbeij->adij"(AR,X,conj(AR)) + ein"(abij,abij),cdij->cdij"(c, X, Ǝ[:,1,:,:,:]), bR)
             @assert infoƎ.converged == 1
         else

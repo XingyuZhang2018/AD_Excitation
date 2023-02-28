@@ -90,17 +90,21 @@ MƎmap(Ǝ, M, Au, Ad) = ein"((abc,ceh),dgeb),fgh -> adf"(Au,Ǝ,M,conj(Ad))
 
 function series_coef_L(k, W)
     kx, ky = k
-    coef = zeros(ComplexF64, W)
-    W_half = Int(ceil(W/2))
-    for i in 1:W
-        if i < W_half
-            coef[i] = exp(i*1.0im*ky)
-        elseif i > W_half
-            coef[i] = exp(1.0im*kx - (W-i)*1.0im*ky)
-        else
-            coef[i] = (exp(i*1.0im*ky) + exp(1.0im*kx - (W-i)*1.0im*ky))/2
-        end
-    end
+    # coef = zeros(ComplexF64, W)
+    # W_half = Int(ceil(W/2))
+    # for i in 1:W
+    #     if i < W_half
+    #         coef[i] = exp(i*1.0im*ky)
+    #     elseif i > W_half
+    #         coef[i] = exp(1.0im*kx - (W-i)*1.0im*ky)
+    #     else
+    #         coef[i] = (exp(i*1.0im*ky) + exp(1.0im*kx - (W-i)*1.0im*ky))/2
+    #     end
+    # end
+    # no approximation
+    coef = [(W-i + i * exp(1.0im * kx))/W * exp(1.0im * ky * i) for i in 1:W]
+    # bad approximation
+    # coef = [exp(1.0im * ky * i) for i in 1:W]
     return coef
 end
 
@@ -118,7 +122,6 @@ series_coef_R(k, W) = series_coef_L(map(-,k), W)
 function einLB(W, k, L, B, A, E, M, Ǝ)
     kx, ky = k
     EM = EMmap(L, M, B, A)
-    # coef = [3*exp(1.0im*ky) + exp(1.0im*kx - 3.0im*ky), 2*exp(2.0im*ky) + 2*exp(1.0im*kx - 2.0im*ky), exp(3.0im*ky) + 3*exp(1.0im*kx - 1.0im*ky), 4*exp(1.0im*kx)]
     coef = series_coef_L(k, W)
     EMs = sum(collect(Iterators.take(iterated(x->EMmap(x, M, A, A), EM), W)) .* coef)
     LB, info = linsolve(LB->LB - exp(1.0im * kx) * nth(iterated(x->EMmap(x, M, A, A), LB), W+1) + exp(1.0im * kx) * ein"(abc,abc),def->def"(LB,Ǝ,E), EMs)
@@ -138,7 +141,6 @@ end
 function einRB(W, k, R, B, A, E, M, Ǝ)
     kx, ky = k
     MƎ = MƎmap(R, M, B, A)
-    # coef = [3*exp(-1.0im*ky) + exp(-1.0im*kx + 3.0im*ky), 2*exp(-2.0im*ky) + 2*exp(-1.0im*kx + 2.0im*ky), exp(-3.0im*ky) + 3*exp(-1.0im*kx + 1.0im*ky), 4*exp(-1.0im*kx)]
     coef = series_coef_R(k, W)
     MƎs = sum(collect(Iterators.take(iterated(x->MƎmap(x, M, A, A), MƎ), W)) .* coef)
     RB, info = linsolve(RB->RB - exp(-1.0im * kx) * nth(iterated(x->MƎmap(x, M, A, A), RB), W+1) + exp(-1.0im * kx) * ein"(abc,abc),def->def"(E,RB,Ǝ), MƎs)
@@ -219,18 +221,19 @@ function excitation_spectrum_MPO(k, A, model, n::Int = 1;
     inv_sq_Rn = atype(sq_Rn^-1)
     VL        = atype(initial_VL(Array(A), Array(Ln)))
 
-    X = atype(rand(ComplexF64, χ*(D-1), χ))
+    X = atype(randn(ComplexF64, χ*(D-1), χ))
     # X ./= norm(X)
-    E0 = Array(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A)))[]
+    E0 = real(Array(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A)))[])
     function f(X)
         Bu = ein"((ba,bcd),de),ef->acf"(inv_sq_Ln, VL, X, inv_sq_Rn)
-        HB = H_MPO_eff(W, k, A, Bu, E, M, Ǝ) - ein"(ad,acb),be ->dce"(Ln, Bu, Rn) * E0
+        # HB = H_MPO_eff(W, k, A, Bu, E, M, Ǝ) - ein"(ad,acb),be ->dce"(Ln, Bu, Rn) * E0
+        HB = H_MPO_eff(W, k, A, Bu, E, M, Ǝ)
         HB = ein"((ba,bcd),acf),de->fe"(inv_sq_Ln,HB,conj(VL),inv_sq_Rn)
         return HB
     end
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = false, maxiter = 100)
-    # @assert info.converged == 1
-    @show Δ
-    # Δ .-= real(Array(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A)))[])
+    info.converged != 1 && @warn("eigsolve doesn't converged")
+    Δ .-= E0
+    # @show Δ
     return Δ, Y, info
 end
