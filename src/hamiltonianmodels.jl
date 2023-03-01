@@ -56,13 +56,13 @@ return a struct representing the spin-`S` heisenberg model with magnetisation fi
 """
 struct Heisenberg{T<:Real} <: HamiltonianModel
      S::T
-     N::Int
+     W::Int
     Jx::T
     Jy::T
     Jz::T
 end
 Heisenberg() = Heisenberg(1/2, 1, 1.0, 1.0, 1.0)
-Heisenberg(S, N) = Heisenberg(S, N, 1.0, 1.0, 1.0)
+Heisenberg(S, W) = Heisenberg(S, W, 1.0, 1.0, 1.0)
 
 """
     hamiltonian(model::Heisenberg)
@@ -83,7 +83,7 @@ return a struct representing the spin-`S` transverse field ising model with magn
 """
 struct TFIsing{T<:Real} <: HamiltonianModel
     S::T
-    N::Int
+    W::Int
     λ::T
 end
 TFIsing(S, λ) = TFIsing(S, 1, λ)

@@ -13,10 +13,10 @@ function MPO end
 return the heisenberg hamiltonian for the `model` as a two-site operator.
 """
 function MPO(model::Heisenberg)
-    S, N, Jx, Jy, Jz = model.S, model.N, model.Jx, model.Jy, model.Jz
+    S, W, Jx, Jy, Jz = model.S, model.W, model.Jx, model.Jy, model.Jz
     Sx, Sy, Sz = const_Sx(S), const_Sy(S), const_Sz(S)
     d = size(Sx, 1)
-    if N == 1
+    if W == 1
         M = zeros(ComplexF64, 5, d, 5, d)
         M[1,:,1,:] .= I(d)
         M[2,:,1,:] .= Jx * Sx
@@ -27,23 +27,23 @@ function MPO(model::Heisenberg)
         M[5,:,4,:] .= Sz
         M[5,:,5,:] .= I(d)
     else
-        M = zeros(ComplexF64, 2+3*N, d, 2+3*N, d)
+        M = zeros(ComplexF64, 2+3*W, d, 2+3*W, d)
         M[2,:,1,:] .= Jx * Sx
-        M[2+N,:,1,:] .= Jy * Sy
-        M[2+2*N,:,1,:] .= Jz * Sz
-        M[2+3*N,:,1+N,:] .= Sx
-        M[2+3*N,:,1+2*N,:] .= Sy
-        M[2+3*N,:,1+3*N,:] .= Sz
-        M[2+3*N,:,2,:] .= Sx
-        M[2+3*N,:,2+N,:] .= Sy
-        M[2+3*N,:,2+2*N,:] .= Sz
-        for i in 2:N
+        M[2+W,:,1,:] .= Jy * Sy
+        M[2+2*W,:,1,:] .= Jz * Sz
+        M[2+3*W,:,1+W,:] .= Sx
+        M[2+3*W,:,1+2*W,:] .= Sy
+        M[2+3*W,:,1+3*W,:] .= Sz
+        M[2+3*W,:,2,:] .= Sx
+        M[2+3*W,:,2+W,:] .= Sy
+        M[2+3*W,:,2+2*W,:] .= Sz
+        for i in 2:W
             M[i+1,:,i,:] .= I(d)
-            M[i+1+N,:,i+N,:] .= I(d)
-            M[i+1+2*N,:,i+2*N,:] .= I(d)
+            M[i+1+W,:,i+W,:] .= I(d)
+            M[i+1+2*W,:,i+2*W,:] .= I(d)
         end
         M[1,:,1,:] .= I(d)
-        M[2+3*N,:,2+3*N,:] .= I(d)
+        M[2+3*W,:,2+3*W,:] .= I(d)
     end
     return M
 end
@@ -54,10 +54,10 @@ end
 return the heisenberg hamiltonian for the `model` as a two-site operator.
 """
 function MPO(model::TFIsing)
-    S, N, λ = model.S, model.N, model.λ
+    S, W, λ = model.S, model.W, model.λ
     Sx, Sz = 2*const_Sx(S), 2*const_Sz(S)
     d = size(Sx, 1)
-    if N == 1
+    if W == 1
         M = zeros(ComplexF64, 3, d, 3, d)
         M[1,:,1,:] .= I(d)
         M[2,:,1,:] .= -Sz
@@ -65,16 +65,16 @@ function MPO(model::TFIsing)
         M[3,:,2,:] .= Sz
         M[3,:,3,:] .= I(d)
     else
-        M = zeros(ComplexF64, 2+N, d, 2+N, d)
+        M = zeros(ComplexF64, 2+W, d, 2+W, d)
         M[2,:,1,:] .= -Sz
-        M[2+N,:,1+N,:] .= Sz
-        M[2+N,:,2,:] .= Sz
-        for i in 2:N
+        M[2+W,:,1+W,:] .= Sz
+        M[2+W,:,2,:] .= Sz
+        for i in 2:W
             M[i+1,:,i,:] .= I(d)
         end
         M[1,:,1,:] .= I(d)
-        M[2+N,:,2+N,:] .= I(d)
-        M[2+N,:,1,:] .= -λ * Sx
+        M[2+W,:,2+W,:] .= I(d)
+        M[2+W,:,1,:] .= -λ * Sx
     end
     return M
 end

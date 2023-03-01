@@ -1,4 +1,5 @@
 using TeneT: leftenv, rightenv
+using JLD2
 export excitation_spectrum_canonical_MPO
 
 function initial_canonical_VL(AL)
@@ -8,6 +9,8 @@ function initial_canonical_VL(AL)
     VL -= ein"abc,dc -> abd"(AL,λL)
     Q, _ = qrpos(reshape(VL, χ*D, χ*(D-1)))
     VL = reshape(Q, χ, D, χ*(D-1))
+    λL = ein"abc,abd -> cd"(VL,conj(AL))
+    VL -= ein"abc,dc -> abd"(AL,λL)
     return VL
 end
 
@@ -166,35 +169,53 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
     outfolder = joinpath(outfolder, "$model")
 
     M = atype(MPO(model))
-    D = size(M, 2)
-    W = size(M, 1)
+    D1 = size(M, 2)
+    D2 = size(M, 1)
+    W = model.W
     AL, C, AR = init_canonical_mps(;infolder = infolder, 
                                     atype = atype,        
-                                    D = D, 
+                                    D = D1, 
                                     χ = χ)
     AC = ALCtoAC(AL, C)
-    ELL, ƎRR = envir_MPO(AL, AR, reshape(M, (W,D,W,D,1,1)))
+    ELL, ƎRR = envir_MPO(AL, AR, reshape(M, (D2,D1,D2,D1,1,1)))
     ERL, ƎRL = envir_MPO_UD(AR, AL, M)
     ELR, ƎLR = envir_MPO_UD(AL, AR, M)
 
-    AL, AR, AC = map(x->reshape(x, χ,D,χ), (AL, AR, AC))
-    ELL, ƎRR = map(x->reshape(x, χ,W,χ), (ELL, ƎRR))
+    AL, AR, AC = map(x->reshape(x, χ,D1,χ), (AL, AR, AC))
+    ELL, ƎRR = map(x->reshape(x, χ,D2,χ), (ELL, ƎRR))
 
     VL = initial_canonical_VL(AL)
 
     # X = zeros(ComplexF64, χ*(D-1), χ)
-    X = atype(rand(ComplexF64, χ*(D-1), χ))
+    X = atype(rand(ComplexF64, χ*(D1-1), χ))
     # X[1] = 1.0
     # X = atype(X)
-    # X /= sqrt(ein"ab,ab->"(X,conj(X))[])
+    # X /= sqrt(Array(ein"ab,ab->"(X,conj(X)))[])
+    E0 = Array(ein"(((adf,abc),dgeb),ceh),fgh -> "(ELL,AC,M,ƎRR,conj(AC)))[]
+    # @show E0
     function f(X)
         Bu = ein"abc,cd->abd"(VL, X)
-        HB = H_canonical_eff(W, k, AL, AR, Bu, M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR)
+        HB = H_canonical_eff(W, k, AL, AR, Bu, M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR) - E0 * Bu 
+        # HB = H_canonical_eff(W, k, AL, AR, Bu, M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR)
         HB = ein"abc,abd->dc"(HB,conj(VL))
         return HB
     end
-    Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = false, maxiter = 100)
+    Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = true, maxiter = 100)
     info.converged != 1 && @warn("eigsolve doesn't converged")
-    Δ .-= real(Array(ein"(((adf,abc),dgeb),ceh),fgh -> "(ELL,AC,M,ƎRR,conj(AC)))[])
+    save_canonical_excitaion(outfolder, W, χ, k, Δ, X)
+    # Δ .-= E0
     return Δ, Y, info
+end
+
+function save_canonical_excitaion(outfolder, W, χ, k, Δ, X)
+    kx, ky = k
+    filepath = joinpath(outfolder, "canonical/χ$(χ)/")
+    !(ispath(filepath)) && mkpath(filepath)
+    logfile = open("$filepath/kx$((kx/pi*W/2))_ky$((ky/pi*W/2)).log", "w")
+    write(logfile, "$(Δ)")
+    close(logfile)
+
+    out_chkp_file = "$filepath/excitaion_X_kx$((kx/pi*W/2))_ky$((ky/pi*W/2)).jld2"
+    save(out_chkp_file, "X", Array(X))
+    println("excitaion file saved @$logfile")
 end
