@@ -155,7 +155,21 @@ end
 ```
 """
 function ACmap(ACj, FLj, FRj, Mj)
-    ACij = ein"((adfj,abcj),dgebj),cehj -> fghj"(FLj,ACj,Mj,FRj)
+    # ACij = ein"((adfj,abcj),dgebj),cehj -> fghj"(FLj,ACj,Mj,FRj)
+    ACij = zero(ACj)
+    W = Int((size(Mj, 1)-2)/3)
+    for (i,j) in [(2,1),(2+W,1),(2+2*W,1),(2+3*W,1+W),(2+3*W,1+2*W),(2+3*W,1+3*W),(2+3*W,2),(2+3*W,2+W),(2+3*W,2+2*W)]
+        ACij .+= ein"((adj,abcj),cfj),ebj->defj"(FLj[:,i,:,:],ACj,FRj[:,j,:,:],Mj[i,:,j,:,:])
+    end
+    for i in 2:W
+        ACij .+= ein"(adj,abcj),cfj->dbfj"(FLj[:,i+1,:,:],ACj,FRj[:,i,:,:])
+        ACij .+= ein"(adj,abcj),cfj->dbfj"(FLj[:,i+1+W,:,:],ACj,FRj[:,i+W,:,:])
+        ACij .+= ein"(adj,abcj),cfj->dbfj"(FLj[:,i+1+2*W,:,:],ACj,FRj[:,i+2*W,:,:])
+    end
+
+    for i in [1,2+3*W]
+        ACij .+= ein"(adj,abcj),cfj->dbfj"(FLj[:,i,:,:],ACj,FRj[:,i,:,:])
+    end
     circshift(ACij, (0,0,0,1))
 end
 
