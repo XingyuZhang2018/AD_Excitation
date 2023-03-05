@@ -34,10 +34,6 @@ function parse_commandline()
             help = "howmany state"
             arg_type = Int
             required = true
-        "--D"
-            help = "ipeps virtual bond dimension"
-            arg_type = Int
-            required = true
         "--chi"
             help = "vumps virtual bond dimension"
             arg_type = Int
@@ -61,20 +57,12 @@ function main()
     N = parsed_args["N"]
     kx = parsed_args["kx"]
     ky = parsed_args["ky"]
-    D = parsed_args["D"]
     χ = parsed_args["chi"]
     folder = parsed_args["folder"]
     model = Heisenberg(0.5,W,Jx,Jy,Jz)
-    AL, C, AR = init_canonical_mps(;infolder = "$folder/$model/", 
-                                    atype = CuArray, 
-                                    Ni=1,Nj=1,       
-                                    D = D, 
-                                    χ = χ)
-    A = AL[:,:,:,1,1]
-    Δ, Y, info = @time excitation_spectrum_MPO((kx*2*pi/W,ky*2*pi/W), A, model, N)
-    logfile = open("$folder/$model/D$(D)_χ$(χ)_W$(W)_kx$(kx)_ky$(ky).log", "w")
-    write(logfile, "$(Δ)")
-    close(logfile)
+    Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, (kx*2*pi/W,ky*2*pi/W), N; 
+                                                         infolder = folder, outfolder = folder,
+                                                         χ=χ, atype = CuArray)
 end
 
 main()

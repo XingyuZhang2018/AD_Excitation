@@ -76,6 +76,8 @@ function initial_VL(A, L_n)
     VL -= ein"(ba,bcd),ed,ef ->acf"(sq_L_n,A,L_n^-1,λL)
     Q, _ = qrpos(reshape(VL, χ*D, χ*(D-1)))
     VL = reshape(Q, χ, D, χ*(D-1))
+    λL = ein"(ad,acb),dce -> eb"(sq_L_n,VL,conj(A))
+    VL -= ein"(ba,bcd),ed,ef ->acf"(sq_L_n,A,L_n^-1,λL)
     return VL
 end
 

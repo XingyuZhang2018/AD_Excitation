@@ -8,11 +8,12 @@ Random.seed!(100)
 model = TFIsing(0.5,12,3.04438)
 gap = [] 
 D = 2
-for χ in 2 .^ (5:5)
+for χ in 2 .^ (5:8)
     println("χ = $χ")
     for k in [(pi,0)]
         @show k
-        Δ, Y, info = @time excitation_spectrum_MPO(k, model, 1; χ=χ, atype = CuArray)
+        Δ, Y, info = @time excitation_spectrum_MPO(k, model, 1; 
+        infolder = "./data/", outfolder = "./data/", χ=χ, atype = CuArray)
         push!(gap, [k[1],Δ[1]])
     end
     print("{")
