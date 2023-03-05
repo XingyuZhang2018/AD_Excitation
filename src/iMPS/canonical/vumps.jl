@@ -111,6 +111,7 @@ function vumps(model;
      infolder = joinpath( infolder, "$model")
     outfolder = joinpath(outfolder, "$model")
     out_chkp_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).jld2")
+    out_log_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).log")
 
     AL, C, AR = init_canonical_mps(;infolder = infolder, 
                                     atype = atype,   
@@ -131,8 +132,12 @@ function vumps(model;
         energy = sum(λAC - λC)/Nj
         AL, AR, errL, errR = ACCtoALAR(AC, C)
         err = errL + errR
-        (i % show_every) == 0 && println("vumps@$i err = $err energy = $energy")
+        message = "vumps@$i err = $err energy = $energy\n"
+        (i % show_every) == 0 && print(message)
         save(out_chkp_file, "ALCAR", map(Array, (AL, C, AR)))
+        logfile = open(out_log_file, "a")
+        write(logfile, message)
+        close(logfile)
     end
 
     println("vumps done@$i err = $err energy = $energy")
