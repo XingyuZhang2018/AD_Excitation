@@ -102,7 +102,6 @@ function vumps(model;
                
     M = atype(MPO(model))
     D = size(M,2)
-    W = size(M,1)
     MM= atype(zeros(ComplexF64, (size(M)...,Ni,Nj)))
     for j in 1:Nj, i in 1:Ni
         MM[:,:,:,:,i,j] = M

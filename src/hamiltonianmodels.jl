@@ -1,6 +1,6 @@
 using OMEinsum
 
-export Heisenberg, TFIsing, XXZ
+export Heisenberg, TFIsing, XXZ, J1J2
 export hamiltonian, HamiltonianModel
 
 function const_Sx(S::Real)
@@ -119,3 +119,16 @@ function hamiltonian(model::XXZ)
         ein"ij,kl -> ijkl"(Sy, Sy) +
     Δ * ein"ij,kl -> ijkl"(Sz, Sz)
 end
+
+"""
+    J1J2(S::T, W::Int, J1::T, J2::T) where {T<:Real}
+
+return a struct representing the spin-`S` J1J2 model with `W`-width
+"""
+struct J1J2{T<:Real} <: HamiltonianModel
+     S::T
+     W::Int
+    J1::T
+    J2::T
+end
+J1J2(W, J2) = J1J2(1/2, W, 1.0, J2)
