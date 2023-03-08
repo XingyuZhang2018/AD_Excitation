@@ -103,6 +103,20 @@ function norm_R(Au, Ad, R = _arraytype(Au)(rand(eltype(Au), size(Au,3), size(Ad,
     return norm_L(Au, Ad, R; kwargs...)
 end
 
+EMmap(E, M, Au, Ad) = ein"((adfij,abcij),dgebij),fghij -> cehij"(E,Au,M,conj(Ad))
+MƎmap(Ǝ, M, Au, Ad) = ein"((abcij,cehij),dgebij),fghij -> adfij"(Au,Ǝ,M,conj(Ad))
+
+"""
+    ```
+     ┌───A───┐               a ────┬──── c
+     │   │   │               │     b     │
+     E───M───Ǝ               ├─ d ─┼─ e ─┤
+     │   │   │               │     g     │
+     └──   ──┘               f ────┴──── h 
+    ```
+"""
+eindB(A, E, M, Ǝ) = ein"((adfij,abcij),dgebij),cehij->fghij"(E,A,M,Ǝ)
+
 """
     λ, E = env_E(Au, Ad, M, E = rand(eltype(Au), size(Au,1), size(M,1), size(Ad,1)); kwargs...)
 

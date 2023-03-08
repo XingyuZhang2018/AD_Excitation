@@ -85,9 +85,6 @@ function envir_MPO(A, M)
     return E, Ǝ
 end
 
-EMmap(E, M, Au, Ad) = ein"((adf,abc),dgeb),fgh -> ceh"(E,Au,M,conj(Ad))
-MƎmap(Ǝ, M, Au, Ad) = ein"((abc,ceh),dgeb),fgh -> adf"(Au,Ǝ,M,conj(Ad))
-
 function series_coef_L(k, W)
     kx, ky = k
     coef = zeros(ComplexF64, W)
@@ -148,16 +145,6 @@ function einRB(W, k, R, B, A, E, M, Ǝ)
     return RB
 end
 
-"""
-    ```
-     ┌───A───┐               a ────┬──── c
-     │   │   │               │     b     │
-     E───M───Ǝ               ├─ d ─┼─ e ─┤
-     │   │   │               │     g     │
-     └──   ──┘               f ────┴──── h 
-    ```
-"""
-eindB(A, E, M, Ǝ) = ein"((adf,abc),dgeb),ceh->fgh"(E,A,M,Ǝ)
 
 """
     H_mn = H_eff(k, A, Bu, Bd, H, L_n, R_n, s1, s2, s3)
