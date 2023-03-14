@@ -121,7 +121,7 @@ function einLB(W, k, L, B, A, E, M, Ǝ)
     EM = EMmap(L, M, B, A)
     coef = series_coef_L(k, W)
     EMs = sum(collect(Iterators.take(iterated(x->EMmap(x, M, A, A), EM), W)) .* coef)
-    LB, info = linsolve(LB->LB - exp(1.0im * kx) * nth(iterated(x->EMmap(x, M, A, A), LB), W+1) + exp(1.0im * kx) * ein"(abc,abc),def->def"(LB,Ǝ,E), EMs)
+    LB, info = linsolve(LB->LB - exp(1.0im * kx) * nth(iterated(x->EMmap(x, M, A, A), LB), 2*W+1) + exp(1.0im * kx) * ein"(abc,abc),def->def"(LB,Ǝ,E), EMs)
     @assert info.converged == 1
     return LB
 end
@@ -140,7 +140,7 @@ function einRB(W, k, R, B, A, E, M, Ǝ)
     MƎ = MƎmap(R, M, B, A)
     coef = series_coef_R(k, W)
     MƎs = sum(collect(Iterators.take(iterated(x->MƎmap(x, M, A, A), MƎ), W)) .* coef)
-    RB, info = linsolve(RB->RB - exp(-1.0im * kx) * nth(iterated(x->MƎmap(x, M, A, A), RB), W+1) + exp(-1.0im * kx) * ein"(abc,abc),def->def"(E,RB,Ǝ), MƎs)
+    RB, info = linsolve(RB->RB - exp(-1.0im * kx) * nth(iterated(x->MƎmap(x, M, A, A), RB), 2*W+1) + exp(-1.0im * kx) * ein"(abc,abc),def->def"(E,RB,Ǝ), MƎs)
     @assert info.converged == 1
     return RB
 end
