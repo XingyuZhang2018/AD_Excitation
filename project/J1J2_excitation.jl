@@ -12,23 +12,15 @@ function parse_commandline()
             help = "helix width"
             arg_type = Int
             required = true
-        "--Jx"
-            help = "coupling Jx"
-            arg_type = Float64
-            required = true
-        "--Jy"
-            help = "coupling Jy"
-            arg_type = Float64
-            required = true
-        "--Jz"
-            help = "coupling Jz"
+        "--J2"
+            help = "coupling J2"
             arg_type = Float64
             required = true
         "--kx"
-            arg_type = Int
+            arg_type = Float64
             required = true
         "--ky"
-            arg_type = Int
+            arg_type = Float64
             required = true
         "--N"
             help = "howmany state"
@@ -51,15 +43,13 @@ function main()
     parsed_args = parse_commandline()
     Random.seed!(100)
     W = parsed_args["W"]
-    Jx = parsed_args["Jx"]
-    Jy = parsed_args["Jy"]
-    Jz = parsed_args["Jz"]
+    J2 = parsed_args["J2"]
     N = parsed_args["N"]
     kx = parsed_args["kx"]
     ky = parsed_args["ky"]
     χ = parsed_args["chi"]
     folder = parsed_args["folder"]
-    model = Heisenberg(0.5,W,Jx,Jy,Jz)
+    model = J1J2(W, J2)
     Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, (kx*2*pi/W,ky*2*pi/W), N; 
                                                          infolder = folder, outfolder = folder,
                                                          Nj = 2, merge = true, χ=χ, atype = CuArray)

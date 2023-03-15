@@ -4,15 +4,16 @@ using Random
 CUDA.allowscalar(false)
 
 Random.seed!(100)
-model = Heisenberg(0.5,3,1.0,1.0,1.0)
+W = 11
+model = Heisenberg(0.5,W,1.0,1.0,1.0)
 gap = []
-for χ in 2 .^ (4:4)
+for χ in 2 .^ (8:8)
     println("χ = $χ")
-    for k in [(0,kx) for kx in pi:pi/6:pi]
+    for k in [(kx,kx) for kx in 10/W*pi:2*pi/W:10/W*pi]
         @show k
         Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, k, 1; 
-        Nj=2, χ=χ, atype = Array, merge = true,
-        infolder = "../data/", outfolder = "../data/")
+        Nj=2, χ=χ, atype = CuArray, merge = true,
+        infolder = "./data/", outfolder = "./data/")
         push!(gap, [k[1],Δ[1]])
     end
     print("{")
