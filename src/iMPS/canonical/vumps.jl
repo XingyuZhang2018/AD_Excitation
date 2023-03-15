@@ -108,8 +108,8 @@ function vumps(model;
         MM[:,:,:,:,i,j] = M
     end
     
-     infolder = joinpath( infolder, "$model")
-    outfolder = joinpath(outfolder, "$model")
+     infolder = joinpath( infolder, "$model", "groundstate")
+    outfolder = joinpath(outfolder, "$model", "groundstate")
     out_chkp_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).jld2")
     out_log_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).log")
 
