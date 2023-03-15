@@ -99,7 +99,7 @@ function vumps(model;
                infolder = "../data/", outfolder = "../data/",
                show_every = Inf,
                atype = Array,
-               if4site = false)
+               if4site::Bool = false)
                
     M = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
     D = size(M,2)
