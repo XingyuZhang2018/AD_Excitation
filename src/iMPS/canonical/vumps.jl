@@ -98,17 +98,18 @@ function vumps(model;
                tol::Float64 = 1e-8,
                infolder = "../data/", outfolder = "../data/",
                show_every = Inf,
-               atype = Array)
+               atype = Array,
+               if4site = false)
                
-    M = atype(MPO(model))
+    M = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
     D = size(M,2)
     MM= atype(zeros(ComplexF64, (size(M)...,Ni,Nj)))
     for j in 1:Nj, i in 1:Ni
         MM[:,:,:,:,i,j] = M
     end
     
-     infolder = joinpath( infolder, "$model")
-    outfolder = joinpath(outfolder, "$model")
+     infolder = joinpath( infolder, "$model", "groundstate")
+    outfolder = joinpath(outfolder, "$model", "groundstate")
     out_chkp_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).jld2")
     out_log_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).log")
 
@@ -129,6 +130,7 @@ function vumps(model;
         λAC, AC = ACenv(AC, E, MM, Ǝ)
          λC,  C =  Cenv( C, E,     Ǝ)
         energy = sum(λAC - λC)/Nj
+        if4site && (energy /= 4)
         AL, AR, errL, errR = ACCtoALAR(AC, C)
         err = errL + errR
         message = "vumps@$i err = $err energy = $energy\n"

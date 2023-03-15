@@ -214,27 +214,27 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
     # @show E0
     function f(X)
         Bu = ein"abcij,cdij->abdij"(VL, X)
-        HB = H_canonical_eff(W, k, AL, AR, Bu, M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR) - ein"abcij, ij->abcij"(Bu, E0)
+        HB = H_canonical_eff(Int(W/2), k .* 2, AL, AR, Bu, M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR) - ein"abcij, ij->abcij"(Bu, E0)
         # HB = H_canonical_eff(W, k, AL, AR, Bu, M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR)
         HB = ein"abcij,abdij->dcij"(HB,conj(VL))
         return HB
     end
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = true, maxiter = 100)
     info.converged != 1 && @warn("eigsolve doesn't converged")
-    save_canonical_excitaion(outfolder, W, χ, k, Δ, X)
+    save_canonical_excitaion(outfolder, W, Nj, χ, k, Δ, X)
     # Δ .-= E0
     return Δ, Y, info
 end
 
-function save_canonical_excitaion(outfolder, W, χ, k, Δ, X)
+function save_canonical_excitaion(outfolder, W, Nj, χ, k, Δ, X)
     kx, ky = k
-    filepath = joinpath(outfolder, "canonical/χ$(χ)/")
+    filepath = joinpath(outfolder, "canonical/Nj$(Nj)_χ$(χ)/")
     !(ispath(filepath)) && mkpath(filepath)
-    logfile = open("$filepath/kx$((kx/pi*W/2))_ky$((ky/pi*W/2)).log", "w")
+    logfile = open("$filepath/kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).log", "w")
     write(logfile, "$(Δ)")
     close(logfile)
 
-    out_chkp_file = "$filepath/excitaion_X_kx$((kx/pi*W/2))_ky$((ky/pi*W/2)).jld2"
+    out_chkp_file = "$filepath/excitaion_X_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).jld2"
     save(out_chkp_file, "X", Array(X))
     println("excitaion file saved @$logfile")
 end
