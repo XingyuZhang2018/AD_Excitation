@@ -224,7 +224,7 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = true, maxiter = 100)
     info.converged != 1 && @warn("eigsolve doesn't converged")
     # if4site && (Δ /= 4)
-    save_canonical_excitaion(outfolder, W, Nj, size(AL,2), χ, k, Δ, X)
+    save_canonical_excitaion(outfolder, W, Nj, size(AL,2), χ, k, Δ, Y)
     # Δ .-= E0
     return Δ, Y, info
 end
