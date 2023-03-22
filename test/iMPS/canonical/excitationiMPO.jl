@@ -7,12 +7,12 @@ using TeneT: ALCtoAC
 using LinearAlgebra
 
 @testset "initial_canonical_VL" begin
-    D, χ = 2, 5
+    D, χ = 16, 5
     AL, C, AR = init_canonical_mps(D=D,χ=χ)
-    VL = initial_canonical_VL(reshape(AL, χ, D, χ))
-    @test ein"abc,abd->cd"(VL, conj(VL)) ≈ I(χ*(D-1))
-    @test norm(ein"abcij,abd->cd"(AL, conj(VL))) < 1e-12
-    @test norm(ein"abc,abdij->cd"(VL, conj(AL))) < 1e-12
+    VL = initial_canonical_VL(AL)
+    @test ein"abcij,abdij->cd"(VL, conj(VL)) ≈ I(χ*(D-1))
+    @test norm(ein"abcij,abdij->cd"(AL, conj(VL))) < 1e-12
+    @test norm(ein"abcij,abdij->cd"(VL, conj(AL))) < 1e-12
 end
 
 @testset "H_eff" begin

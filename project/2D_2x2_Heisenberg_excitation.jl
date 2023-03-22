@@ -9,11 +9,11 @@ model = Heisenberg(0.5,W,1.0,1.0,1.0)
 gap = []
 for χ in 2 .^ (4:4)
     println("χ = $χ")
-    for x in -W/2:W/2, y in -W/2:W/2
+    for x in 2:2, y in -0:0
         k = (x*2*pi/W,y*2*pi/W)
         @show x,y,k
-        Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, k, 1; 
-        Nj=1, χ=χ, atype = Array, if4site = true,
+        Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, k, 10; 
+        Nj=1, χ=χ, atype = CuArray, if4site = true,
         infolder = "../data/", outfolder = "../data/")
         @show Δ
         push!(gap, [k[1],Δ[1]])

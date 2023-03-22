@@ -20,18 +20,18 @@ return the 2x2 helix MPO of the `model` as a four-bond tensor.
 """
 function MPO_2x2 end
 
-contract4(x) = ein"((ae,bf),cg),dh->abcdefgh"(x...)
+contract4(x) = (d = size(x[1],1); reshape(ein"((ae,bf),cg),dh->abcdefgh"(x...), (d^4,d^4)))
 I_S(S) = (d = size(S, 1); Id = I(d); 
-         [reshape(contract4(circshift([S, Id, Id, Id], i)), (d^4,d^4)) for i in 0:3]
+         [contract4(circshift([S, Id, Id, Id], i)) for i in 0:3]
         )
-I_4(d) = (Id = I(d); reshape(contract4([Id, Id, Id, Id]), (d^4,d^4)))
+I_4(d) = (Id = I(d); contract4([Id, Id, Id, Id]))
 H_on_site(S) = (d = size(S, 1); Id = I(d); 
-                reshape(mapreduce(contract4, +,
-                                  [[ S,  S, Id, Id], 
-                                   [ S, Id,  S, Id], 
-                                   [Id,  S, Id,  S], 
-                                   [Id, Id,  S,  S]]
-                                 ), (d^4,d^4))
+                mapreduce(contract4, +,
+                          [[ S,  S, Id, Id], 
+                           [ S, Id,  S, Id], 
+                           [Id,  S, Id,  S], 
+                           [Id, Id,  S,  S]]
+                          )
                )
 
 function MPO_2x2(model::Heisenberg)

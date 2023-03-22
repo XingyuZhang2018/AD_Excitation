@@ -11,5 +11,6 @@ include("iMPS/uniform/excitationiMPS.jl")
 include("iMPS/uniform/excitationiMPO.jl")
 include("iMPS/canonical/vumps.jl")
 include("iMPS/canonical/excitationiMPO.jl")
+include("iMPS/canonical/observable.jl")
 
 end

@@ -16,13 +16,6 @@ function initial_canonical_VL(AL)
     return VL
 end
 
-function energy_gs_canonical_MPO(M, AC, C, E, Ǝ)
-    e = ein"(((adf,abc),dgeb),ceh),fgh -> "(E,AC,M,Ǝ,conj(AC))[]
-    n = ein"((ab,acd),bce),de->"(C,E,Ǝ,conj(C))[]
-    @show e n
-    return e-n
-end
-
 function envir_MPO_exci(U, D, C, M; type = "RL")
     atype = _arraytype(M)
     χ,Nx,Ny = size(U)[[1,4,5]]
@@ -117,7 +110,7 @@ function einBƎ(W, k, ƎRR, B, AL, AR, ELR, ƎLR, M)
 end
 
 """
-    H_mn = H_eff(k, A, Bu, Bd, H, L_n, R_n, s1, s2, s3)
+    H_mn = H_canonical_eff(W, k, AL, AR, Bu, M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR)
 
     get `<Ψₖ(B)|H|Ψₖ(B)>`, including sum graphs form https://arxiv.org/abs/1810.07006 Eq.(268)
     ```
@@ -152,7 +145,7 @@ end
     ```
 
 """
-function H_canonical_eff(W, k, AL, AR, Bu,  M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR)
+function H_canonical_eff(W, k, AL, AR, Bu, M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR)
     # 1. B and dB on the same site of M
     HB  = eindB(Bu, ELL, M, ƎRR) 
 
@@ -165,40 +158,26 @@ function H_canonical_eff(W, k, AL, AR, Bu,  M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR)
     return HB
 end
 
-"""
-    excitation_spectrum(k, A, H, n)
-
-find at least `n` smallest excitation gaps 
-"""
-function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
-                                           Ni::Int = 1, Nj::Int = 1,
-                                           χ::Int = 8,
-                                           atype = Array,
-                                           merge::Bool = false,
-                                           if4site::Bool = false,
-                                           infolder = "../data/", outfolder = "../data/")
-
-     infolder = joinpath( infolder, "$model")
-    outfolder = joinpath(outfolder, "$model")
+function canonical_exci_env(model, Nj, χ; infolder, atype, ifmerge, if4site)
+    infolder = joinpath( infolder, "$model")
 
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
     D1 = size(Mo, 1)
     D2 = size(Mo, 2)
-    if merge
+    if ifmerge
         M = reshape(ein"abcg,cdef->abdegf"(Mo,Mo), (D1, D2^2, D1, D2^2, 1, 1))
     else
-        M = atype(zeros(ComplexF64, (size(Mo)...,Ni,Nj)))
-        for j in 1:Nj, i in 1:Ni
-            M[:,:,:,:,i,j] = Mo
+        M = atype(zeros(ComplexF64, (size(Mo)...,1,Nj)))
+        for j in 1:Nj
+            M[:,:,:,:,1,j] = Mo
         end
     end
-    W = model.W
     AL, C, AR = init_canonical_mps(;infolder = joinpath(infolder, "groundstate"), 
                                     atype = atype,  
                                     Nj = Nj,      
                                     D = D2, 
                                     χ = χ)
-    if merge
+    if ifmerge
         AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
         AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
         C = reshape(C[:,:,1,2], (χ, χ, 1, 1))  
@@ -209,10 +188,30 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
     ERL, ƎRL = envir_MPO_exci(AR, AL, C, M; type = "RL")
     ELR, ƎLR = envir_MPO_exci(AL, AR, C, M; type = "LR")
 
-    VL= initial_canonical_VL(AL)
+    VL = initial_canonical_VL(AL)
+
+    return M, AL, C, AR, AC, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR, VL
+end
+
+"""
+    excitation_spectrum(k, A, H, n)
+
+find at least `n` smallest excitation gaps 
+"""
+function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
+                                           Ni::Int = 1, Nj::Int = 1,
+                                           χ::Int = 8,
+                                           atype = Array,
+                                           ifmerge::Bool = false,
+                                           if4site::Bool = false,
+                                           infolder = "../data/", outfolder = "../data/")
+
+    M, AL, C, AR, AC, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR, VL = canonical_exci_env(model, Nj, χ;  
+            infolder = infolder, atype = atype, ifmerge = ifmerge, if4site = if4site)
 
     X = atype(rand(ComplexF64, χ*(size(AL, 2)-1), χ, size(AL, 4), size(AL, 5)))
     E0 = ein"(((adfij,abcij),dgebij),cehij),fghij -> ij"(ELL,AC,M,ƎRR,conj(AC))
+    W = model.W
     # @show E0
     function f(X)
         Bu = ein"abcij,cdij->abdij"(VL, X)
@@ -224,12 +223,12 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = true, maxiter = 100)
     info.converged != 1 && @warn("eigsolve doesn't converged")
     # if4site && (Δ /= 4)
-    save_canonical_excitaion(outfolder, W, Nj, size(AL,2), χ, k, Δ, X)
+    save_canonical_excitaion(joinpath(outfolder, "$model"), W, Nj, size(AL,2), χ, k, Δ, VL, Y)
     # Δ .-= E0
     return Δ, Y, info
 end
 
-function save_canonical_excitaion(outfolder, W, Nj, D, χ, k, Δ, X)
+function save_canonical_excitaion(outfolder, W, Nj, D, χ, k, Δ, VL, X)
     kx, ky = k
     filepath = joinpath(outfolder, "canonical/Nj$(Nj)_D$(D)_χ$(χ)/")
     !(ispath(filepath)) && mkpath(filepath)
@@ -237,7 +236,7 @@ function save_canonical_excitaion(outfolder, W, Nj, D, χ, k, Δ, X)
     write(logfile, "$(Δ)")
     close(logfile)
 
-    out_chkp_file = "$filepath/excitaion_X_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).jld2"
-    save(out_chkp_file, "X", Array(X))
+    out_chkp_file = "$filepath/excitaion_VLX_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).jld2"
+    save(out_chkp_file, "VLX", (Array(VL), map(Array, X)))
     println("excitaion file saved @$logfile")
 end
