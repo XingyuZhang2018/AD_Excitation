@@ -7,7 +7,7 @@ Random.seed!(100)
 W = 4
 model = Heisenberg(0.5,W,1.0,1.0,1.0)
 gap = []
-for χ in 2 .^ (4:4)
+for χ in 2 .^ (6:6)
     println("χ = $χ")
     for x in 2:2, y in -0:0
         k = (x*2*pi/W,y*2*pi/W)

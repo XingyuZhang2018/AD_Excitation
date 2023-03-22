@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # global variables
-W=11
-chi=256
+W=6
+chi=128
 
 # create sbatch jobfile
 for kx in $(seq $[-$W/2] 1 $[$W/2])

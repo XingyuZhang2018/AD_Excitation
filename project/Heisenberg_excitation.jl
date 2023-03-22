@@ -62,7 +62,7 @@ function main()
     model = Heisenberg(0.5,W,Jx,Jy,Jz)
     Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, (kx*2*pi/W,ky*2*pi/W), N; 
                                                          infolder = folder, outfolder = folder,
-                                                         Nj = 2, merge = true, χ=χ, atype = CuArray)
+                                                         Nj = 1, if4site = true, χ=χ, atype = CuArray)
 end
 
 main()
