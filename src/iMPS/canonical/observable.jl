@@ -1,6 +1,6 @@
 export load_canonical_excitaion
 export energy_gs_canonical_MPO
-export pattern_weight
+export spectral_weight
 
 function load_canonical_excitaion(infolder, model, Nj, D, χ, k)
     kx, ky = k
@@ -8,6 +8,7 @@ function load_canonical_excitaion(infolder, model, Nj, D, χ, k)
     infolder = joinpath(infolder, "$model")
     filepath = joinpath(infolder, "canonical/Nj$(Nj)_D$(D)_χ$(χ)/")
     chkp_file = "$filepath/excitaion_VLX_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).jld2"
+    println("load canonical excitaion from $chkp_file")
     load(chkp_file)["VLX"]
 end
 
@@ -113,20 +114,16 @@ function einSƆ(W, k, AR, S, C)
     return SƆ
 end
 
-function S_4site(model)
+function S_4site(model, k)
     S = model.S
+    kx, ky = k
     Sα = const_Sx(S), const_Sy(S), const_Sz(S)
     d = Int(2*S + 1)
     Id = I(d)
-    [[contract4([S,Id,Id,Id]), contract4([Id,S,Id,Id]),contract4([Id,Id,S,Id]),contract4([Id,Id,Id,S])] for S in Sα]
+    [(contract4([S,Id,Id,Id]) + exp(1.0im * ky) * contract4([Id,S,Id,Id]) + exp(1.0im * kx) *contract4([Id,Id,S,Id]) + exp(1.0im * kx + 1.0im * ky) * contract4([Id,Id,Id,S]))/4 for S in Sα]
 end
 
-pattern(S_4, ::Val{:Ferro  }) = [(S[1]+S[2]+S[3]+S[4])/4 for S in S_4]
-pattern(S_4, ::Val{:Neel   }) = [(S[1]-S[2]-S[3]+S[4])/4 for S in S_4]
-pattern(S_4, ::Val{:Strip_h}) = [(S[1]+S[2]-S[3]-S[4])/4 for S in S_4]
-pattern(S_4, ::Val{:Strip_v}) = [(S[1]-S[2]+S[3]-S[4])/4 for S in S_4]
-
-function pattern_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerge, if4site)
+function spectral_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerge, if4site)
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
     D1 = size(Mo, 1)
     D2 = size(Mo, 2)
@@ -153,22 +150,29 @@ function pattern_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerge
     _, ƆLL = env_ɔ(AL, conj(AL))
 
     AC = ALCtoAC(AL, C)
-    S_4s = S_4site(model)
+    S_4s = atype.(S_4site(model, k))
     kx, ky = k
     W = model.W
-    for patt in [:Neel, :Ferro, :Strip_h, :Strip_v]
-        S_4 = atype.(pattern(S_4s, Val(patt)))
-        VL, X = load_canonical_excitaion(infolder, model, Nj, D2, χ, k)
-        VL = atype(VL)
-        X  = atype.(X)
-        ωk = zeros(Float64, m)
-        for i in 1:m
-            B = ein"abcij,cdij->abdij"(VL, X[i])
-            ωk[i] = sum([ω(W, k, AC, AL, AR, S, B, ƆLL, CRR) for S in S_4])
-        end
-        filepath = joinpath(outfolder, "$model", "canonical/Nj$(Nj)_D$(D2)_χ$(χ)/")
-        logfile = open("$filepath/pattern_weight_$(patt)_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).log", "w")
-        write(logfile, "$(ωk)")
-        close(logfile)
+    k_config = [k[1], k[2]]
+    if if4site
+        k_config[1] > pi/2 && (k_config[1] = pi-k_config[1])
+        k_config[2] > pi/2 && (k_config[2] = pi-k_config[2])
+        k_config *= 2
     end
+    VL, X = load_canonical_excitaion(infolder, model, Nj, D2, χ, k_config)
+    VL = atype(VL)
+    X  = atype.(X)
+    ωk = zeros(Float64, m)
+    for i in 1:m
+        B = ein"abcij,cdij->abdij"(VL, X[i])
+        ωk[i] = sum([ω(W, k_config, AC, AL, AR, S, B, ƆLL, CRR) for S in S_4s])
+    end
+    filepath = joinpath(outfolder, "$model", "canonical/Nj$(Nj)_D$(D2)_χ$(χ)/")
+    if4site && (W *= 2)
+    logfile = open("$filepath/spectral_weight_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).log", "w")
+    write(logfile, "$(ωk)")
+    close(logfile)
+    println("save spectral weight to $logfile")
+
+    return ωk
 end
