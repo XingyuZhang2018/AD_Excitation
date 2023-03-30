@@ -8,7 +8,7 @@ Nj = 1
 infolder = "../data/"
 outfolder = "../data/"
 model = Heisenberg(0.5,W,1.0,1.0,1.0)
-for x in 0:0, y in 0:0
+for x in 4:4, y in 4:4
     @show x,y
     k = (x*pi/W,y*pi/W)
     spectral_weight(model, k, 10; 
