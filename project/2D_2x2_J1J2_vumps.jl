@@ -4,12 +4,12 @@ using Random
 CUDA.allowscalar(false)
 
 Random.seed!(100)
-model = J1J2(2, 0.5)
+model = J1J2(4, 0.5)
 energy = [] 
-for χ in 2 .^ (6:6)
+for χ in 2 .^ (4:4)
     @show χ
     e = @time vumps(model; infolder = "../data/", outfolder = "../data/",
-    Nj = 1, χ=χ, iters = 1000, show_every = 1, tol = 1e-8, atype = Array, if4site = true)
+    Nj = 1, χ=χ, iters = 1, show_every = 1, tol = 1e-8, atype = Array, if4site = true)
     push!(energy, e)
 end
 print("{")

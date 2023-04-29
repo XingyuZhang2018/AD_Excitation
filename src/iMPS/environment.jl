@@ -57,23 +57,39 @@ function cint(A)
     return c
 end
 
-function env_c(Au, Ad, c = cint(Au); kwargs...) 
+function env_c(Au, Ad, c = cint(Au); ifcor_len=false, outfolder=nothing, kwargs...) 
     Ni,Nj = size(Au)[[4,5]]
     λc = zeros(eltype(c),Ni)
+    ifcor_len ? (n=2) : (n=1)
     for i in 1:Ni
-        λcs, cs, info = eigsolve(X->cmap(X, Au[:,:,:,i,:], Ad[:,:,:,i,:]), c[:,:,i,:], 1, :LM; maxiter=100, ishermitian = false, kwargs...)
+        λcs, cs, info = eigsolve(X->cmap(X, Au[:,:,:,i,:], Ad[:,:,:,i,:]), c[:,:,i,:], n, :LM; maxiter=100, ishermitian = false)
         info.converged == 0 && @warn "env_c not converged"
+        if ifcor_len 
+            logfile = open("$outfolder/correlation_length_c.log", "w")
+            ξ = -1/log(abs(λcs[2]))
+            write(logfile, "$(ξ)")
+            close(logfile)
+            println("save correlation length to $logfile")
+        end
         λc[i], c[:,:,i,:] = selectpos(λcs, cs, Nj)
     end
     return λc, c
 end
 
-function env_ɔ(Au, Ad, ɔ = cint(Au); kwargs...) 
+function env_ɔ(Au, Ad, ɔ = cint(Au); ifcor_len=false, outfolder=nothing, kwargs...) 
     Ni,Nj = size(Au)[[4,5]]
     λɔ = zeros(eltype(ɔ),Ni)
+    ifcor_len ? (n=2) : (n=1)
     for i in 1:Ni
-        λɔs, ɔs, info = eigsolve(X->ɔmap(X, Au[:,:,:,i,:], Ad[:,:,:,i,:]), ɔ[:,:,i,:], 1, :LM; maxiter=100, ishermitian = false, kwargs...)
-        info.converged == 0 && @warn "env_c not converged"
+        λɔs, ɔs, info = eigsolve(X->ɔmap(X, Au[:,:,:,i,:], Ad[:,:,:,i,:]), ɔ[:,:,i,:], n, :LM; maxiter=100, ishermitian = false, kwargs...)
+        info.converged == 0 && @warn "env_ɔ not converged"
+        if ifcor_len 
+            logfile = open("$outfolder/correlation_length_ɔ.log", "w")
+            ξ = -1/log(abs(λɔs[2]))
+            write(logfile, "$(ξ)")
+            close(logfile)
+            println("save correlation length to $logfile")
+        end
         λɔ[i], ɔ[:,:,i,:] = selectpos(λɔs, ɔs, Nj)
     end
     return λɔ, ɔ

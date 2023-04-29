@@ -212,6 +212,7 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
     X = atype(rand(ComplexF64, χ*(size(AL, 2)-1), χ, size(AL, 4), size(AL, 5)))
     E0 = ein"(((adfij,abcij),dgebij),cehij),fghij -> ij"(ELL,AC,M,ƎRR,conj(AC))
     W = model.W
+    ifmerge && (W = Int(W/2))
     # @show E0
     function f(X)
         Bu = ein"abcij,cdij->abdij"(VL, X)

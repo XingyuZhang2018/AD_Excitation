@@ -42,7 +42,7 @@ function main()
     iters = parsed_args["iters"]
     model = J1J2(W, J2)
     vumps(model; infolder = folder, outfolder = folder,
-                 Nj = 2, χ=χ, iters = iters, show_every = 1, tol = 1e-8, atype = CuArray)
+                 Nj = 1, χ=χ, iters = iters, show_every = 1, tol = 1e-8, atype = CuArray, if4site = true)
 end
 
 main()

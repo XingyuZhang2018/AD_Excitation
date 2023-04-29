@@ -1,6 +1,6 @@
 export load_canonical_excitaion
 export energy_gs_canonical_MPO
-export spectral_weight
+export spectral_weight, correlation_length
 
 function load_canonical_excitaion(infolder, model, Nj, D, χ, k)
     kx, ky = k
@@ -175,4 +175,38 @@ function spectral_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerg
     println("save spectral weight to $logfile")
 
     return ωk
+end
+
+function correlation_length(model; Nj, χ, infolder, outfolder, atype, ifmerge, if4site)
+    Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
+    D1 = size(Mo, 1)
+    D2 = size(Mo, 2)
+    if ifmerge
+        M = reshape(ein"abcg,cdef->abdegf"(Mo,Mo), (D1, D2^2, D1, D2^2, 1, 1))
+    else
+        M = atype(zeros(ComplexF64, (size(Mo)...,1,Nj)))
+        for j in 1:Nj
+            M[:,:,:,:,1,j] = Mo
+        end
+    end
+    groundstate_folder = joinpath(infolder, "$model", "groundstate")
+    AL, C, AR = init_canonical_mps(;infolder = groundstate_folder, 
+                                    atype = atype,  
+                                    Nj = Nj,      
+                                    D = D2, 
+                                    χ = χ)
+    if ifmerge
+        AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        C = reshape(C[:,:,1,2], (χ, χ, 1, 1))
+    end
+
+    outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
+    !isdir(outfolder) && mkpath(outfolder)
+    env_c(AL, conj(AL); 
+          ifcor_len=true, 
+          outfolder=outfolder)
+    # env_ɔ(AR, conj(AR);
+    #       ifcor_len=true, 
+    #       outfolder=outfolder)
 end
