@@ -52,7 +52,8 @@ function main()
     model = J1J2(W, J2)
     Δ, Y, info = @time excitation_spectrum_canonical_MPO(model, (kx*2*pi/W,ky*2*pi/W), N; 
                                                          infolder = folder, outfolder = folder,
-                                                         Nj = 2, merge = true, χ=χ, atype = CuArray)
-end
+                                                         Nj = 1, ifmerge = false, if4site = true,
+                                                         χ=χ, atype = CuArray) 
+end   
 
 main()

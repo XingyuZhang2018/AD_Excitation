@@ -13,9 +13,9 @@ function init_canonical_mps(;infolder = "../data/",
 
     in_chkp_file = joinpath(infolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(χ).jld2")
     if isfile(in_chkp_file)
-        AL = atype(zeros(ComplexF64, targχ,D,targχ,Ni,Nj))
-        AR = atype(zeros(ComplexF64, targχ,D,targχ,Ni,Nj))
-            C = atype(zeros(ComplexF64, targχ,  targχ,Ni,Nj))
+        AL = atype(rand(ComplexF64, targχ,D,targχ,Ni,Nj)) * 1e-6
+        AR = atype(rand(ComplexF64, targχ,D,targχ,Ni,Nj)) * 1e-6
+            C = atype(rand(ComplexF64, targχ,  targχ,Ni,Nj)) * 1e-6
         AL[1:χ,:,1:χ,:,:], C[1:χ,1:χ,:,:], AR[1:χ,:,1:χ,:,:] = map(atype, load(in_chkp_file)["ALCAR"])
         verbose && println("load canonical mps from $in_chkp_file")
         targχ > χ && println("and increase χ from $(χ) to $(targχ)")
