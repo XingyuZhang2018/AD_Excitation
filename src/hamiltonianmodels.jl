@@ -1,6 +1,6 @@
 using OMEinsum
 
-export Heisenberg, TFIsing, XXZ, J1J2
+export Heisenberg, TFIsing, XXZ, J1J2, Kitaev
 export hamiltonian, HamiltonianModel
 
 function const_Sx(S::Real)
@@ -132,3 +132,14 @@ struct J1J2{T<:Real} <: HamiltonianModel
     J2::T
 end
 J1J2(W, J2) = J1J2(1/2, W, 1.0, J2)
+
+"""
+    Kitaev(S::T, W::Int) where {T<:Real}
+
+return a struct representing the spin-`S` Kitaev model with `W`-width
+"""
+struct Kitaev{T<:Real} <: HamiltonianModel
+     S::T
+     W::Int
+end
+Kitaev(W) = Kitaev(1/2, W)
