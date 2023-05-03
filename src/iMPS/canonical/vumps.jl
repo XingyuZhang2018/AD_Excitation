@@ -1,6 +1,11 @@
-using TeneT: leftorth, rightorth, LRtoC, ALCtoAC, ACCtoALAR
+using CUDA
+CUDA.allowscalar(false)
+using Random
+using JSON
 
+using TeneT: leftorth, rightorth, LRtoC, ALCtoAC, ACCtoALAR
 export vumps
+
 
 function init_canonical_mps(;infolder = "../data/", 
                              atype = Array, 
@@ -89,18 +94,22 @@ end
 """
 
 """
-function vumps(model;
-               Ni::Int = 1,
-               Nj::Int = 1,
-               χ::Int = 10, 
-               targχ = χ,
-               iters::Int = 100,
-               tol::Float64 = 1e-8,
-               infolder = "../data/", outfolder = "../data/",
-               show_every = Inf,
-               atype = Array,
-               if4site::Bool = false)
-               
+function vumps(config_file)
+    config = JSON.parsefile(config_file)  
+    Random.seed!(config["seed"])  
+    model = eval(Meta.parse(config["model"]))
+    Ni = config["vumps"]["Ni"]
+    Nj = config["vumps"]["Nj"]
+    χ = config["vumps"]["χ"]
+    targχ = config["vumps"]["targχ"]
+    iters = config["vumps"]["iters"]
+    tol = config["vumps"]["tol"]
+    show_every = config["vumps"]["show_every"]
+    atype = eval(Meta.parse(config["vumps"]["atype"]))
+    if4site = config["vumps"]["if4site"]
+    infolder = config["data"]["infolder"]
+    outfolder = config["data"]["outfolder"]
+    
     M = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
     D = size(M,2)
     MM= atype(zeros(ComplexF64, (size(M)...,Ni,Nj)))

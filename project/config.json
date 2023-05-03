@@ -1,0 +1,19 @@
+{
+    "model": "Kitaev(8)",
+    "seed": 100,
+    "vumps": {
+      "iters": 1000,
+      "show_every": 1,
+      "atype": "Array",
+      "Ni": 1,
+      "Nj": 1,
+      "χ": 16,
+      "targχ": 16,
+      "tol": 1e-8,
+      "if4site": false
+    },
+    "data": {
+      "infolder": "../data/",
+      "outfolder": "../data/"
+    }
+}
