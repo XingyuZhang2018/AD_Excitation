@@ -109,7 +109,7 @@ function vumps(config_file)
     if4site = config["vumps"]["if4site"]
     infolder = config["data"]["infolder"]
     outfolder = config["data"]["outfolder"]
-    
+
     M = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
     D = size(M,2)
     MM= atype(zeros(ComplexF64, (size(M)...,Ni,Nj)))
@@ -121,6 +121,9 @@ function vumps(config_file)
     outfolder = joinpath(outfolder, "$model", "groundstate")
     out_chkp_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).jld2")
     out_log_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).log")
+
+    !isdir(outfolder) && mkpath(outfolder)
+    cp(config_file, joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).json"))
 
     AL, C, AR = init_canonical_mps(;infolder = infolder, 
                                     atype = atype,   
