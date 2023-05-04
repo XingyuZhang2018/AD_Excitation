@@ -1,19 +1,26 @@
-{
-    "model": "Kitaev(8)",
+{ 
+  "model": "Kitaev(4)",
+  "mps": {
+    "if4site": false,
+    "Ni": 1,
+    "Nj": 1,
+    "χ": 16,
+    "targχ": 16
+  },
+  "vumps": {
+    "iters": 1000,
+    "show_every": 1,
+    "tol": 1e-8
+  },
+  "excitation": {
+    "k": [0, 0],
+    "n": 1,
+    "ifmerge": false
+  },
+  "data": {
     "seed": 100,
-    "vumps": {
-      "iters": 1000,
-      "show_every": 1,
-      "atype": "Array",
-      "Ni": 1,
-      "Nj": 1,
-      "χ": 16,
-      "targχ": 16,
-      "tol": 1e-8,
-      "if4site": false
-    },
-    "data": {
-      "infolder": "../data/",
-      "outfolder": "../data/"
-    }
+    "atype": "Array",
+    "infolder": "../data/",
+    "outfolder": "../data/"
+  }
 }

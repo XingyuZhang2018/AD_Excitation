@@ -96,17 +96,21 @@ end
 """
 function vumps(config_file)
     config = JSON.parsefile(config_file)  
-    Random.seed!(config["seed"])  
+    
     model = eval(Meta.parse(config["model"]))
-    Ni = config["vumps"]["Ni"]
-    Nj = config["vumps"]["Nj"]
-    χ = config["vumps"]["χ"]
-    targχ = config["vumps"]["targχ"]
+
+    Ni = config["mps"]["Ni"]
+    Nj = config["mps"]["Nj"]
+    χ = config["mps"]["χ"]
+    targχ = config["mps"]["targχ"]
+    if4site = config["mps"]["if4site"]
+
     iters = config["vumps"]["iters"]
     tol = config["vumps"]["tol"]
     show_every = config["vumps"]["show_every"]
-    atype = eval(Meta.parse(config["vumps"]["atype"]))
-    if4site = config["vumps"]["if4site"]
+    
+    Random.seed!(config["data"]["seed"]) 
+    atype = eval(Meta.parse(config["data"]["atype"])) 
     infolder = config["data"]["infolder"]
     outfolder = config["data"]["outfolder"]
 
@@ -123,7 +127,7 @@ function vumps(config_file)
     out_log_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).log")
 
     !isdir(outfolder) && mkpath(outfolder)
-    cp(config_file, joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).json"))
+    cp(config_file, joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).json"); force=true)
 
     AL, C, AR = init_canonical_mps(;infolder = infolder, 
                                     atype = atype,   

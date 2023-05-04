@@ -1,4 +1,23 @@
 using AD_Excitation
+using ArgParse
 
-config_file = "./project/config.json"
-@time vumps(config_file)
+function parse_commandline()
+    s = ArgParseSettings()
+
+    @add_arg_table! s begin
+        "--config"
+            help = "config file"
+            arg_type = String
+            default = "./project/config.json"
+    end
+
+    return parse_args(s)
+end
+
+function main()
+    parsed_args = parse_commandline()
+    config_file = parsed_args["config"]
+    @time vumps(config_file)
+end
+
+main()

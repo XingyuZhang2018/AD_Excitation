@@ -198,14 +198,27 @@ end
 
 find at least `n` smallest excitation gaps 
 """
-function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
-                                           Ni::Int = 1, Nj::Int = 1,
-                                           χ::Int = 8,
-                                           atype = Array,
-                                           ifmerge::Bool = false,
-                                           if4site::Bool = false,
-                                           infolder = "../data/", outfolder = "../data/")
+function excitation_spectrum_canonical_MPO(config_file)
 
+    config = JSON.parsefile(config_file)  
+
+    model = eval(Meta.parse(config["model"]))
+
+    Ni = config["mps"]["Ni"]
+    Nj = config["mps"]["Nj"]
+    χ = config["mps"]["χ"]
+    if4site = config["mps"]["if4site"]
+
+    k = config["excitation"]["k"]
+    n = config["excitation"]["n"]
+    ifmerge = config["excitation"]["ifmerge"]
+
+    Random.seed!(config["data"]["seed"]) 
+    atype = eval(Meta.parse(config["data"]["atype"])) 
+    infolder = config["data"]["infolder"]
+    outfolder = config["data"]["outfolder"]   
+
+    k = (k[1]*2*pi/W, k[2]*2*pi/W)
     M, AL, C, AR, AC, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR, VL = canonical_exci_env(model, Nj, χ;  
             infolder = infolder, atype = atype, ifmerge = ifmerge, if4site = if4site)
 
@@ -224,12 +237,12 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
     Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; ishermitian = true, maxiter = 100)
     info.converged != 1 && @warn("eigsolve doesn't converged")
     # if4site && (Δ /= 4)
-    save_canonical_excitaion(joinpath(outfolder, "$model"), W, Nj, size(AL,2), χ, k, Δ, VL, Y)
+    save_canonical_excitaion(joinpath(outfolder, "$model"), config_file, W, Nj, size(AL,2), χ, k, Δ, VL, Y)
     # Δ .-= E0
-    return Δ, Y, info
+    # return Δ, Y, info
 end
 
-function save_canonical_excitaion(outfolder, W, Nj, D, χ, k, Δ, VL, X)
+function save_canonical_excitaion(outfolder, config_file, W, Nj, D, χ, k, Δ, VL, X)
     kx, ky = k
     filepath = joinpath(outfolder, "canonical/Nj$(Nj)_D$(D)_χ$(χ)/")
     !(ispath(filepath)) && mkpath(filepath)
@@ -240,4 +253,6 @@ function save_canonical_excitaion(outfolder, W, Nj, D, χ, k, Δ, VL, X)
     out_chkp_file = "$filepath/excitaion_VLX_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).jld2"
     save(out_chkp_file, "VLX", (Array(VL), map(Array, X)))
     println("excitaion file saved @$logfile")
+
+    cp(config_file, "$filepath/kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).json"; force=true)
 end
