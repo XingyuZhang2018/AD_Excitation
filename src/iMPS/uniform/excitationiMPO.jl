@@ -14,7 +14,7 @@ function energy_gs_MPO(A, M)
     E, Ǝ = envir_MPO(A, M)
     e = ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A))[]
     n = ein"abc,abc -> "(E,Ǝ)[]
-    @show e n
+    # @show e n
     return e-n
 end
 
@@ -42,12 +42,25 @@ end
 #     return E, Ǝ
 # end
 
+function C工linear(T, C, Ɔ, Cb)
+    x, info = linsolve(x->x - ein"abc,(ad,dbe)->ce"(T,x,conj(T)) + ein"(ab,ab),cd->cd"(x,Ɔ,C), Cb)
+    @assert info.converged == 1
+    return x
+end
+
+function 工Ɔlinear(T, C, Ɔ, Ɔb)
+    x, info = linsolve(x->x - ein"(abc,ce),dbe->ad"(T,x,conj(T)) + ein"(ab,ab),cd->cd"(C,x,Ɔ), Ɔb)
+    @assert info.converged == 1
+    return x
+end
+
 function envir_MPO(A, M)
     χ,d,_ = size(A)
     W     = size(M, 1)
     atype = _arraytype(A)
-    E = atype == Array ? zeros(ComplexF64, χ,W,χ) : CUDA.zeros(ComplexF64, χ,W,χ)
-    Ǝ = atype == Array ? zeros(ComplexF64, χ,W,χ) : CUDA.zeros(ComplexF64, χ,W,χ)
+    x = atype == Array ? zeros(ComplexF64, χ,W,χ) : CUDA.zeros(ComplexF64, χ,W,χ)
+    E = Zygote.Buffer(x)
+    Ǝ = Zygote.Buffer(x)
     c,ɔ = env_norm(A)
 
     E[:,W,:] = c
@@ -58,8 +71,7 @@ function envir_MPO(A, M)
         end
         if i == 1 #if M[i,:,i,:] == I(d)
             bL = YL
-            E[:,i,:], infoE = linsolve(E->E - ein"abc,(ad,dbe)->ce"(A,E,conj(A)) + ein"(ab,ab),cd->cd"(E,ɔ,c), bL)
-            @assert infoE.converged == 1
+            E[:,i,:] = C工linear(A, c, ɔ, bL)
         else
             E[:,i,:] = YL
         end
@@ -73,8 +85,7 @@ function envir_MPO(A, M)
         end
         if i == W # if M[i,:,i,:] == I(d)
             bR = YR
-            Ǝ[:,i,:], infoƎ = linsolve(Ǝ->Ǝ - ein"(abc,ce),dbe->ad"(A,Ǝ,conj(A)) + ein"(ab,ab),cd->cd"(c,Ǝ,ɔ), bR)
-            @assert infoƎ.converged == 1
+            Ǝ[:,i,:] = 工Ɔlinear(A, c, ɔ, bR)
         else
             Ǝ[:,i,:] = YR
         end
@@ -82,7 +93,7 @@ function envir_MPO(A, M)
 
     # @show ein"ab,ab->"(c,YR)[] ein"ab,ab->"(YL,ɔ)[] ein"ab,ab->"(c,Ǝ[:,3,:])[] ein"ab,ab->"(E[:,1,:],ɔ)[] 
     # @show ein"(abc,ce),(ad,dbe)->"(A,Ǝ[:,3,:],c,conj(A))[]
-    return E, Ǝ
+    return copy(E), copy(Ǝ)
 end
 
 function series_coef_L(k, W)

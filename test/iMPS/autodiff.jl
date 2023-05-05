@@ -1,6 +1,6 @@
 using AD_Excitation
 using AD_Excitation: num_grad
-using AD_Excitation: norm_L, norm_R
+using AD_Excitation: norm_L, norm_R, C工linear, 工Ɔlinear, env_norm
 using ChainRulesCore
 using CUDA
 using KrylovKit
@@ -91,4 +91,46 @@ end
         return norm(Array(A)[]/Array(B)[])
     end
     @test Zygote.gradient(foo2, Ad)[1] ≈ num_grad(foo2, Ad) atol = 1e-8
+end
+
+@testset "C工linear and 工Ɔlinear with $atype{$dtype}" for atype in [Array], dtype in [ComplexF64]
+    Random.seed!(100)
+    D = 2
+    χ = 5
+    T = atype(rand(dtype,χ,D,χ))
+    C, Ɔ = env_norm(T)
+    Cb = atype(rand(dtype,χ,χ))
+    Ɔb = atype(rand(dtype,χ,χ))
+
+    foo1(T) = norm(C工linear(T, C, Ɔ, Cb))
+    foo2(C) = norm(C工linear(T, C, Ɔ, Cb))
+    foo3(Ɔ) = norm(C工linear(T, C, Ɔ, Cb))
+    foo4(Cb) = norm(C工linear(T, C, Ɔ, Cb))
+
+    @test Zygote.gradient(foo1, T)[1] ≈ num_grad(foo1, T) atol = 1e-8
+    @test Zygote.gradient(foo2, C)[1] ≈ num_grad(foo2, C) atol = 1e-8
+    @test Zygote.gradient(foo3, Ɔ)[1] ≈ num_grad(foo3, Ɔ) atol = 1e-8
+    @test Zygote.gradient(foo4, Cb)[1] ≈ num_grad(foo4, Cb) atol = 1e-8
+
+    foo5(T) = norm(工Ɔlinear(T, C, Ɔ, Ɔb))
+    foo6(C) = norm(工Ɔlinear(T, C, Ɔ, Ɔb))
+    foo7(Ɔ) = norm(工Ɔlinear(T, C, Ɔ, Ɔb))
+    foo8(Ɔb) = norm(工Ɔlinear(T, C, Ɔ, Ɔb))
+
+    @test Zygote.gradient(foo5, T)[1] ≈ num_grad(foo5, T) atol = 1e-8
+    @test Zygote.gradient(foo6, C)[1] ≈ num_grad(foo6, C) atol = 1e-8
+    @test Zygote.gradient(foo7, Ɔ)[1] ≈ num_grad(foo7, Ɔ) atol = 1e-8
+    @test Zygote.gradient(foo8, Ɔb)[1] ≈ num_grad(foo8, Ɔb) atol = 1e-8
+end
+
+@testset "envir_MPO" begin
+    Random.seed!(100)
+    D,χ = 2,4
+    model = TFIsing(0.5, 1.0)
+    A = rand(χ,D,χ)
+    M = MPO(model)
+    eMPO = energy_gs_MPO(A, M)
+
+    foo1(x) = real(energy_gs_MPO(x, M))
+    @test Zygote.gradient(foo1, A)[1] ≈ num_grad(foo1, A)
 end

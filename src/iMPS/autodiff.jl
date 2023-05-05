@@ -125,3 +125,29 @@ function ChainRulesCore.rrule(::typeof(env_E), Au::AbstractArray{T}, Ad::Abstrac
     end
     return (λ, E), back
 end
+
+function ChainRulesCore.rrule(::typeof(C工linear), T, C, Ɔ, Cb)
+    x = C工linear(T, C, Ɔ, Cb)
+    function back(dx)
+        dCb, info = linsolve(x->x - ein"(abc,ce),dbe->ad"(T,x,conj(T)) + ein"(ab,ab),cd->cd"(C,x,Ɔ), conj(dx))
+        @assert info.converged == 1 "C工linear not converged"
+        dT = conj!(ein"(ab,bcd),ed->ace"(x, conj(T), dCb)) + ein"(ab,acd),de->bce"(x, T, dCb)
+        dC = -conj!(ein"(ab,ab),cd->cd"(x, Ɔ, dCb))
+        dƆ = -conj!(ein"ab,(cd,cd)->ab"(x, C, dCb))
+        return NoTangent(), dT, dC, dƆ, conj(dCb)
+    end
+    return x, back
+end
+
+function ChainRulesCore.rrule(::typeof(工Ɔlinear), T, C, Ɔ, Ɔb)
+    x = 工Ɔlinear(T, C, Ɔ, Ɔb)
+    function back(dx)
+        dƆb, info = linsolve(x->x - ein"abc,(ad,dbe)->ce"(T,x,conj(T)) + ein"(ab,ab),cd->cd"(x,Ɔ,C), conj(dx))
+        @assert info.converged == 1 "linear 工Ɔ not converged"
+        dT = conj!(ein"(ab,bcd),ed->ace"(dƆb, conj(T), x)) + ein"(ab,acd),de->bce"(dƆb, T, x)
+        dC = -conj!(ein"(ab,ab),cd->cd"(dƆb, Ɔ, x))
+        dƆ = -conj!(ein"ab,(cd,cd)->ab"(dƆb, C, x))
+        return NoTangent(), dT, dC, dƆ, conj(dƆb)
+    end
+    return x, back
+end
