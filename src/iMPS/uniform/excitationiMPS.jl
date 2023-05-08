@@ -1,29 +1,5 @@
 export excitation_spectrum
 
-"""
-    L_n, R_n = env_norm(A)
-
-    get normalized environment of A
-
-    ```  
-                            a──────┬──────b
-    ┌───┐                   │      │      │
-    L   R  = 1              │      c      │
-    └───┘                   │      │      │
-                            d──────┴──────e      
-                                                        
-    ┌─ A ─      ┌─            ─ A──┐       ─┐
-    L  │   =    L               │  R  =     R  
-    └─ A*─      └─            ─ A*─┘       ─┘
-    ```  
-"""
-function env_norm(A)
-    _, L_n = norm_L(A, conj(A))
-    _, R_n = norm_R(A, conj(A))
-    n = Array(ein"((ad,acb),dce),be->"(L_n,A,conj(A),R_n))[]
-    L_n /= n
-    return L_n, R_n
-end
 
 """
     B = initial_excitation(A)

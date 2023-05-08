@@ -2,25 +2,39 @@ using FileIO
 using JLD2
 using Optim, LineSearches
 using Zygote
-export init_mps, optimizeiMPS
 
-function init_mps(;infolder = "../data/", 
-                    atype = Array, 
-                    verbose::Bool = true,        
-                    D::Int = 2, 
-                    χ::Int = 5)
+@with_kw struct ADMPS <: Algorithm
+    tol::Float64 = Defaults.tol
+    maxiter::Int = Defaults.maxiter
+    optimmethod = LBFGS(m = 20)
+end
 
-    in_chkp_file = joinpath(infolder,"D$(D)_χ$(χ).jld2")
-    if isfile(in_chkp_file)
-        A = atype(load(in_chkp_file)["A"])
-        verbose && println("load mps from $in_chkp_file")
+function init_uniform_mps(;D, χ, 
+                           atype = Defaults.atype, 
+                           infolder = Defaults.infolder,
+                           verbose::Bool = Defaults.verbose,
+                           if_vumps_init = false
+                          )
+
+    if if_vumps_init
+        in_chkp_file = joinpath(infolder, "groundstate", "canonical_mps_1x1_D$(D)_χ$(χ).jld2")
+        A, = load(in_chkp_file)["ALCAR"]
+        A = atype(reshape(A, χ,D,χ))
+        verbose && println("load canonical mps from $in_chkp_file")
     else
-        A = atype(randn(ComplexF64, χ,D,χ))
-        verbose && println("random initial mps $in_chkp_file")
+        in_chkp_file = joinpath(infolder, "groundstate", "uniform_mps_D$(D)_χ$(χ).jld2")
+        if isfile(in_chkp_file)
+            A = atype(load(in_chkp_file)["A"])
+            verbose && println("load mps from $in_chkp_file")
+        else
+            A = atype(randn(ComplexF64, χ,D,χ))
+            verbose && println("random initial mps $in_chkp_file")
+        end
     end
+
     _, L_n = norm_L(A, conj(A))
     _, R_n = norm_R(A, conj(A))
-    n = ein"(ad,acb),(dce,be) ->"(L_n,A,conj(A),R_n)[]/ein"ab,ab ->"(L_n,R_n)[]
+    n = Array(ein"(ad,acb),(dce,be) ->"(L_n,A,conj(A),R_n))[]/Array(ein"ab,ab ->"(L_n,R_n))[]
     A /= sqrt(n)
     return A
 end
@@ -29,24 +43,26 @@ end
     e = energy_gs(A, H, key)
 
 ground state energy
-┌───A─────A───┐          a───┬──c──┬───e
-│   │     │   │          │   b     d   │  
-L   ├─ H ─┤   R          │   ├─────┤   │  
-│   │     │   │          │   f     g   │  
-└───A*────A*──┘          h───┴──i──┴───j 
+````
+    ┌───A─────A───┐          a───┬──c──┬───e
+    │   │     │   │          │   b     d   │  
+    L   ├─ H ─┤   R          │   ├─────┤   │  
+    │   │     │   │          │   f     g   │  
+    └───A*────A*──┘          h───┴──i──┴───j 
+````
 """
-function energy_gs(A, H, key)
-    L_n, R_n = envir(A, key)
+function energy_gs(A, H; infolder = Defaults.infolder, outfolder = Defaults.outfolder)
+    L_n, R_n = envir(A; infolder=infolder, outfolder=outfolder)
     env = ein"((ah,abc),cde),((hfi,igj),ej)->bfdg"(L_n,A,A,conj(A),conj(A),R_n)
     e   = ein"abcd,abcd->"(env,H)[]
     n   = ein"aabb->"(env)[]
     return e/n
 end
 
-function envir(A, key)
-    D, χ, infolder, outfolder = key
+function envir(A; infolder = Defaults.infolder, outfolder = Defaults.outfolder)
+    χ, D, _ = size(A)
     Zygote.@ignore begin
-        in_chkp_file = joinpath([infolder,"env","D$(D)_χ$(χ).jld2"]) 
+        in_chkp_file = joinpath([infolder, "env", "D$(D)_χ$(χ).jld2"]) 
         if isfile(in_chkp_file)
             # println("environment load from $(in_chkp_file)")
             L_n,R_n = load(in_chkp_file)["env"]
@@ -65,54 +81,68 @@ function envir(A, key)
     return L_n, R_n
 end
 
-function optimizeiMPS(A; 
-        model = Heisenberg(), 
-        infolder = "../data/", outfolder = "../data/", 
-        optimmethod = LBFGS(m = 20), 
-        verbose= true, savefile = true,
-        f_tol::Real = 1e-6, 
-        opiter::Int = 100)
+"""
+    energy_gs_MPO(A, M, key)
+ground state energy
+````
+    ┌────A────┐        a ────┬──── c 
+    │    │    │        │     b     │ 
+    E────M────Ǝ        ├─ d ─┼─ e ─┤ 
+    │    │    │        │     g     │ 
+    └────A*───┘        f ────┴──── h 
+````
+"""
+function energy_gs_MPO(A, M;  infolder = Defaults.infolder, outfolder = Defaults.outfolder)
+    L_n, R_n = envir(A; infolder=infolder, outfolder=outfolder)
+    n = Array(ein"(ad,acb),(dce,be) ->"(L_n,A,conj(A),R_n))[]/Array(ein"ab,ab ->"(L_n,R_n))[]
+    A /= sqrt(n)
+    n = Array(ein"((ad,acb),dce),be->"(L_n,A,conj(A),R_n))[]
+    L_n /= n
 
-     infolder = joinpath( infolder, "$model")
-    outfolder = joinpath(outfolder, "$model")
-
-    χ, D, _ = size(A)
-    key = (D, χ, infolder, outfolder)
-    H = _arraytype(A)(hamiltonian(model))
-    f(A) = real(energy_gs(A, H, key))
-    g(A) = Zygote.gradient(f,A)[1]
-    res = optimize(f, g, 
-                   A, optimmethod,inplace = false,
-                   Optim.Options(f_tol=f_tol, iterations=opiter,
-                   extended_trace=true,
-                   callback=os->writelog(os, outfolder, D, χ, savefile, verbose)),
-    )
-    A = Optim.minimizer(res)
-    e = Optim.minimum(res)
-    return A, e
+    E, Ǝ = envir_MPO(A, M, L_n, R_n)
+    e = Array(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A)))[]
+    n = Array(ein"abc,abc -> "(E,Ǝ))[]
+    # @show e n
+    return e-n
 end
 
-function optimizeiMPS_MPO(A; 
-        model = Heisenberg(), 
-        infolder = "../data/", outfolder = "../data/", 
-        optimmethod = LBFGS(m = 20), 
-        verbose= true, savefile = true,
-        f_tol::Real = 1e-6, 
-        opiter::Int = 100)
+function find_groundstate(model, alg::ADMPS;
+                          Ni::Int = 1, Nj::Int = 1,
+                          χ::Int = 16,
+                          atype = Defaults.atype,
+                          infolder::String = Defaults.infolder,
+                          outfolder::String = Defaults.outfolder,
+                          verbose::Bool = Defaults.verbose,
+                          ifsave = true,
+                          ifMPO = false, 
+                          if4site = false,
+                          if_vumps_init = false
+                          )
 
      infolder = joinpath( infolder, "$model")
     outfolder = joinpath(outfolder, "$model")
 
-    χ, D, _ = size(A)
-    key = (D, χ, infolder, outfolder)
-    M = _arraytype(A)(MPO(model))
-    f(A) = real(energy_gs_MPO(A, M))
+    if if4site
+        H = atype(MPO_2x2(model))
+    else
+        H = ifMPO ? atype(MPO(model)) : atype(hamiltonian(model))
+    end
+
+    D = size(H,2)
+    f(A) = ifMPO ? (if4site ? real(energy_gs_MPO(A, H; infolder=infolder, outfolder=outfolder))/4 : real(energy_gs_MPO(A, H; infolder=infolder, outfolder=outfolder))) : real(energy_gs(A, H; infolder=infolder, outfolder=outfolder))
+    A = init_uniform_mps(;D, χ, 
+                          atype = atype, 
+                          infolder = infolder,
+                          verbose = verbose,
+                          if_vumps_init = if_vumps_init
+                         )
+    
     g(A) = Zygote.gradient(f,A)[1]
     res = optimize(f, g, 
-                   A, optimmethod,inplace = false,
-                   Optim.Options(f_tol=f_tol, iterations=opiter,
+                   A, alg.optimmethod, inplace = false,
+                   Optim.Options(f_tol = alg.tol, iterations = alg.maxiter,
                    extended_trace=true,
-                   callback=os->writelog(os, outfolder, D, χ, savefile, verbose)),
+                   callback=os->writelog(os, outfolder, D, χ, ifsave, verbose)),
     )
     A = Optim.minimizer(res)
     e = Optim.minimum(res)
@@ -123,7 +153,7 @@ end
     writelog(os::OptimizationState, key=nothing)
 return the optimise infomation of each step, including `time` `iteration` `energy` and `g_norm`, saved in `/data/model_D_χ_tol_maxiter.log`. Save the final `ipeps` in file `/data/model_D_χ_tol_maxiter.jid2`
 """
-function writelog(os::OptimizationState, outfolder, D, χ, savefile, verbose)
+function writelog(os::OptimizationState, outfolder, D, χ, ifsave, verbose)
     message = "$(round(os.metadata["time"],digits=1))    $(os.iteration)    $(round(os.value,digits=15))    $(round(os.g_norm,digits=8))\n"
 
     if verbose
@@ -131,12 +161,12 @@ function writelog(os::OptimizationState, outfolder, D, χ, savefile, verbose)
         flush(stdout)
     end
 
-    if savefile 
+    if ifsave 
         !(isdir(outfolder)) && mkpath(outfolder)
-        logfile = open(outfolder*"/D$(D)_χ$(χ).log", "a")
+        logfile = open(outfolder*"/uniform_mps_D$(D)_χ$(χ).log", "a")
         write(logfile, message)
         close(logfile)
-        save(outfolder*"/D$(D)_χ$(χ).jld2", "A", Array(os.metadata["x"]))
+        save(outfolder*"/uniform_mps_D$(D)_χ$(χ).jld2", "A", Array(os.metadata["x"]))
     end
     return false
 end

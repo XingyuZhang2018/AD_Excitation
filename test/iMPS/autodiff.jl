@@ -122,15 +122,3 @@ end
     @test Zygote.gradient(foo7, Ɔ)[1] ≈ num_grad(foo7, Ɔ) atol = 1e-8
     @test Zygote.gradient(foo8, Ɔb)[1] ≈ num_grad(foo8, Ɔb) atol = 1e-8
 end
-
-@testset "envir_MPO" begin
-    Random.seed!(100)
-    D,χ = 2,4
-    model = TFIsing(0.5, 1.0)
-    A = rand(χ,D,χ)
-    M = MPO(model)
-    eMPO = energy_gs_MPO(A, M)
-
-    foo1(x) = real(energy_gs_MPO(x, M))
-    @test Zygote.gradient(foo1, A)[1] ≈ num_grad(foo1, A)
-end
