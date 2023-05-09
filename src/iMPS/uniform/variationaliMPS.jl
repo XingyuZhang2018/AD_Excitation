@@ -145,9 +145,8 @@ function find_groundstate(model, alg::ADMPS;
                    extended_trace=true,
                    callback=os->writelog(os, outfolder, D, χ, ifsave, verbose)),
     )
-    A = Optim.minimizer(res)
     e = Optim.minimum(res)
-    return A, e
+    return e
 end
 
 """

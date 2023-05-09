@@ -5,7 +5,7 @@ using Random
 using TeneT: leftorth, rightorth, LRtoC, ALCtoAC, ACCtoALAR
 
 @with_kw struct VUMPS <: Algorithm
-    show_every::Int = 100
+    show_every::Int = 1
     tol::Float64 = Defaults.tol
     maxiter::Int = Defaults.maxiter
 end

@@ -1,7 +1,10 @@
 module AD_Excitation
 
     using Parameters 
+    using Zygote
+
     export find_groundstate, VUMPS, ADMPS
+    
     #default settings
     module Defaults
         const eltype = ComplexF64
