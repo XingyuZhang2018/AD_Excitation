@@ -7,6 +7,7 @@ using Zygote
     tol::Float64 = Defaults.tol
     maxiter::Int = Defaults.maxiter
     optimmethod = LBFGS(m = 20)
+    ifcheckpoint::Bool = false
 end
 
 function init_uniform_mps(;D, χ, 
@@ -59,29 +60,6 @@ function energy_gs(A, H; infolder = Defaults.infolder, outfolder = Defaults.outf
     return e/n
 end
 
-function envir(A; infolder = Defaults.infolder, outfolder = Defaults.outfolder)
-    χ, D, _ = size(A)
-    atype = _arraytype(A)
-    Zygote.@ignore begin
-        in_chkp_file = joinpath([infolder, "env", "D$(D)_χ$(χ).jld2"]) 
-        if isfile(in_chkp_file)
-            # println("environment load from $(in_chkp_file)")
-            L_n, R_n = map(atype, load(in_chkp_file)["env"])
-        else
-            L_n = atype(rand(eltype(A), size(A,1), size(A,1)))
-            R_n = atype(rand(eltype(A), size(A,3), size(A,3)))
-        end 
-    end
-    _, L_n = norm_L(A, conj(A), L_n)
-    _, R_n = norm_R(A, conj(A), R_n)
-
-    Zygote.@ignore begin
-        out_chkp_file = joinpath([outfolder,"env","D$(D)_χ$(χ).jld2"]) 
-        save(out_chkp_file, "env", map(Array, (L_n, R_n)))
-    end
-    return L_n, R_n
-end
-
 """
     energy_gs_MPO(A, M, key)
 ground state energy
@@ -93,14 +71,14 @@ ground state energy
     └────A*───┘        f ────┴──── h 
 ````
 """
-function energy_gs_MPO(A, M;  infolder = Defaults.infolder, outfolder = Defaults.outfolder)
+function energy_gs_MPO(A, M; ifcheckpoint = false, infolder = Defaults.infolder, outfolder = Defaults.outfolder)
     L_n, R_n = envir(A; infolder=infolder, outfolder=outfolder)
     n = Array(ein"(ad,acb),(dce,be) ->"(L_n,A,conj(A),R_n))[]/Array(ein"ab,ab ->"(L_n,R_n))[]
     A /= sqrt(n)
     n = Array(ein"((ad,acb),dce),be->"(L_n,A,conj(A),R_n))[]
     L_n /= n
 
-    E, Ǝ = envir_MPO(A, M, L_n, R_n)
+    E, Ǝ = ifcheckpoint ? checkpoint(envir_MPO, A, M, L_n, R_n) : envir_MPO(A, M, L_n, R_n)
     e = Array(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A)))[]
     n = Array(ein"abc,abc -> "(E,Ǝ))[]
     # @show e n
@@ -130,7 +108,7 @@ function find_groundstate(model, alg::ADMPS;
     end
 
     D = size(H,2)
-    f(A) = ifMPO ? (if4site ? real(energy_gs_MPO(atype(A), H; infolder=infolder, outfolder=outfolder))/4 : real(energy_gs_MPO(atype(A), H; infolder=infolder, outfolder=outfolder))) : real(energy_gs(atype(A), H; infolder=infolder, outfolder=outfolder))
+    f(A) = ifMPO ? (if4site ? real(energy_gs_MPO(atype(A), H; ifcheckpoint=alg.ifcheckpoint, infolder=infolder, outfolder=outfolder))/4 : real(energy_gs_MPO(atype(A), H; ifcheckpoint=alg.ifcheckpoint, infolder=infolder, outfolder=outfolder))) : real(energy_gs(atype(A), H; infolder=infolder, outfolder=outfolder))
     A = init_uniform_mps(;D, χ, 
                           atype = atype, 
                           infolder = infolder,

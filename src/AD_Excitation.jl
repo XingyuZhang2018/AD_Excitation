@@ -4,7 +4,7 @@ module AD_Excitation
     using Zygote
 
     export find_groundstate, VUMPS, ADMPS
-    
+    export checkpoint
     #default settings
     module Defaults
         const eltype = ComplexF64

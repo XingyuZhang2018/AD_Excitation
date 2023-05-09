@@ -1,5 +1,5 @@
 using AD_Excitation
-using AD_Excitation: envir_MPO, initial_VL,initial_excitation,H_MPO_eff,N_MPO_eff,energy_gs_MPO, energy_gs, env_norm,init_canonical_mps, EMmap,env_c, env_ɔ
+using AD_Excitation: envir_MPO, initial_VL, initial_excitation,H_MPO_eff, energy_gs_MPO, energy_gs, env_norm, init_canonical_mps, init_uniform_mps, EMmap,env_c, env_ɔ
 using LinearAlgebra
 using OMEinsum
 using Random
@@ -8,14 +8,13 @@ using Test
 @testset "envir_MPO" begin
     D,χ = 2,16
     model = TFIsing(0.5, 1.0)
-    key = D,χ,"../data/$model/","../data/$model/"
-    A = init_mps(D = D, χ = χ,
+    A = init_uniform_mps(D = D, χ = χ,
                  infolder = "../data/$model/")
     M = MPO(model)
     eMPO = energy_gs_MPO(A, M)
 
     H = hamiltonian(model)
-    eH = energy_gs(A, H, key)
+    eH = energy_gs(A, H)
     @test eMPO ≈ eH
 end
 

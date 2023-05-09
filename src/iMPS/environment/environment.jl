@@ -95,6 +95,29 @@ function env_ɔ(Au, Ad, ɔ = cint(Au); ifcor_len=false, outfolder=nothing, kwarg
     return λɔ, ɔ
 end
 
+function envir(A; infolder = Defaults.infolder, outfolder = Defaults.outfolder)
+    χ, D, _ = size(A)
+    atype = _arraytype(A)
+    Zygote.@ignore begin
+        in_chkp_file = joinpath([infolder, "env", "D$(D)_χ$(χ).jld2"]) 
+        if isfile(in_chkp_file)
+            # println("environment load from $(in_chkp_file)")
+            L_n, R_n = map(atype, load(in_chkp_file)["env"])
+        else
+            L_n = atype(rand(eltype(A), size(A,1), size(A,1)))
+            R_n = atype(rand(eltype(A), size(A,3), size(A,3)))
+        end 
+    end
+    _, L_n = norm_L(A, conj(A), L_n)
+    _, R_n = norm_R(A, conj(A), R_n)
+
+    Zygote.@ignore begin
+        out_chkp_file = joinpath([outfolder,"env","D$(D)_χ$(χ).jld2"]) 
+        save(out_chkp_file, "env", map(Array, (L_n, R_n)))
+    end
+    return L_n, R_n
+end
+
 """
     λ, L = norm_L(Au, Ad, L; kwargs...)
 Compute the left environment tensor for normalization, by finding the left fixed point

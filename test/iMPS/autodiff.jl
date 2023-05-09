@@ -30,6 +30,14 @@ end
     @test Zygote.gradient(foo2,1)[1] ≈ Zygote.gradient(foo3,1)[1]
 end
 
+@testset "checkpointing" for atype in [Array]
+    foo1(x) = (println(x); sin(x))
+    @test Zygote.gradient(x -> checkpoint(foo1, x), 1)[1] ≈ cos(1) ## see 1 twice
+
+    foo2(x,y) = (println(x); x*y)
+    @test Zygote.gradient(x -> checkpoint(foo2, x, 1), 2)[1] ≈ 1 ## see 2 twice
+end
+
 @testset "linsolve with $atype{$dtype}" for atype in [Array], dtype in [Float64]
     Random.seed!(100)
     D,d = 2^2,2

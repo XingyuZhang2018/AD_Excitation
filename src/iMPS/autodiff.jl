@@ -41,6 +41,17 @@ function num_grad(f, a::AbstractArray; δ::Real=1e-5)
     return _arraytype(a)(df)
 end
 
+# See Zygote Checkpointing https://fluxml.ai/Zygote.jl/latest/adjoints/#Checkpointing-1
+checkpoint(f, x...) = f(x...) 
+Zygote.@adjoint checkpoint(f, x...) = f(x...), ȳ -> Zygote._pullback(f, x...)[2](ȳ)
+# function ChainRulesCore.rrule(::typeof(checkpoint), f, x...)
+#     function back(ȳ)
+#         x̄ = Zygote._pullback(f, x...)[2](ȳ)
+#         return NoTangent(), x̄...
+#     end
+#     return f(x...), back
+# end
+
 # patch since it's currently broken otherwise
 function ChainRulesCore.rrule(::typeof(Base.typed_hvcat), ::Type{T}, rows::Tuple{Vararg{Int}}, xs::S...) where {T,S}
     y = Base.typed_hvcat(T, rows, xs...)

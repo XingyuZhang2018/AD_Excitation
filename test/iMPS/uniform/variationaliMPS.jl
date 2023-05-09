@@ -33,29 +33,29 @@ end
     @show norm(Zygote.gradient(foo1, A)[1])  norm(num_grad(foo1, A))
 end
 
-@testset "1D Heisenberg ground energy with $atype" for atype in [CuArray]
+@testset "1D Heisenberg ground energy with $atype" for atype in [Array]
     Random.seed!(100)
-    # _, e = find_groundstate(J1J2(4, 0.4), ADMPS();
-    #                         χ = 16,
-    #                         atype = atype,
-    #                         infolder = "../data",
-    #                         outfolder = "../data",
-    #                         verbose = true,
-    #                         ifsave = true,
-    #                         ifMPO = true, 
-    #                         if4site = true,
-    #                         if_vumps_init = false
-    #                         )
-    _, e = find_groundstate(Heisenberg(), ADMPS();
-                            χ = 16,
-                            atype = atype,
-                            infolder = "../data",
-                            outfolder = "../data",
-                            verbose = true,
-                            ifsave = true,
-                            ifMPO = true, 
-                            if4site = false,
-                            if_vumps_init = false
-                            )
+    # find_groundstate(J1J2(4, 0.4), ADMPS();
+    #                       χ = 16,
+    #                       atype = atype,
+    #                       infolder = "../data",
+    #                       outfolder = "../data",
+    #                       verbose = true,
+    #                       ifsave = true,
+    #                       ifMPO = true, 
+    #                       if4site = true,
+    #                       if_vumps_init = false
+    #                       )
+    e = find_groundstate(Heisenberg(), ADMPS(maxiter=10, ifcheckpoint=true);
+                     χ = 16,
+                     atype = atype,
+                     infolder = "../data",
+                     outfolder = "../data",
+                     verbose = true,
+                     ifsave = true,
+                     ifMPO = true, 
+                     if4site = false,
+                     if_vumps_init = false
+                     )
     @test e ≈ 0.25-log(2) atol = 1e-3
 end
