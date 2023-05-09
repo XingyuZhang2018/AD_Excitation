@@ -78,7 +78,7 @@ function energy_gs_MPO(A, M; ifcheckpoint = false, infolder = Defaults.infolder,
     n = Array(ein"((ad,acb),dce),be->"(L_n,A,conj(A),R_n))[]
     L_n /= n
 
-    E, Ǝ = ifcheckpoint ? checkpoint(envir_MPO, A, M, L_n, R_n) : envir_MPO(A, M, L_n, R_n)
+    E, Ǝ = envir_MPO(A, M, L_n, R_n; ifcheckpoint = ifcheckpoint)
     e = Array(ein"(((adf,abc),dgeb),ceh),fgh -> "(E,A,M,Ǝ,conj(A)))[]
     n = Array(ein"abc,abc -> "(E,Ǝ))[]
     # @show e n

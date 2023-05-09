@@ -10,7 +10,27 @@ function 工Ɔlinear(T, C, Ɔ, Ɔb)
     return x
 end
 
-function envir_MPO(A, M, c, ɔ)
+function contract_YL(A, Mi, E, i, W)
+    χ = size(A, 1)
+    atype = _arraytype(A)
+    YL = Zygote.@ignore atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
+    for j in i+1:W
+        YL += ein"(abc,db),(ae,edf)->cf"(A,Mi[j,:,:],E[:,j,:],conj(A))
+    end
+    return YL
+end
+
+function contract_YR(A, Mi, Ǝ, i)
+    χ = size(A, 1)
+    atype = _arraytype(A)
+    YR = Zygote.@ignore atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
+    for j in 1:i-1
+        YR += ein"((abc,db),cf),edf->ae"(A,Mi[:,j,:],Ǝ[:,j,:],conj(A))
+    end
+    return YR
+end
+
+function envir_MPO(A, M, c, ɔ; ifcheckpoint = false)
     χ = size(A, 1)
     W = size(M, 1)
     atype = _arraytype(A)
@@ -20,10 +40,11 @@ function envir_MPO(A, M, c, ɔ)
 
     E[:,W,:] = c
     for i in W-1:-1:1
-        YL = Zygote.@ignore atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
-        for j in i+1:W
-            YL += ein"(abc,db),(ae,edf)->cf"(A,M[j,:,i,:],E[:,j,:],conj(A))
-        end
+        # YL = Zygote.@ignore atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
+        # for j in i+1:W
+        #     YL += ein"(abc,db),(ae,edf)->cf"(A,M[j,:,i,:],E[:,j,:],conj(A))
+        # end
+        YL = ifcheckpoint ? checkpoint(contract_YL, A, M[:,:,i,:], E, i, W) : contract_YL(A, M[:,:,i,:], E, i, W)
         if i == 1 #if M[i,:,i,:] == I(d)
             bL = YL
             E[:,i,:] = C工linear(A, c, ɔ, bL)
@@ -34,10 +55,11 @@ function envir_MPO(A, M, c, ɔ)
 
     Ǝ[:,1,:] = ɔ
     for i in 2:W
-        YR = Zygote.@ignore atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
-        for j in 1:i-1
-            YR += ein"((abc,db),cf),edf->ae"(A,M[i,:,j,:],Ǝ[:,j,:],conj(A))
-        end
+        # YR = Zygote.@ignore atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
+        # for j in 1:i-1
+        #     YR += ein"((abc,db),cf),edf->ae"(A,M[i,:,j,:],Ǝ[:,j,:],conj(A))
+        # end
+        YR = ifcheckpoint ? checkpoint(contract_YR, A, M[i,:,:,:], Ǝ, i) : contract_YR(A, M[i,:,:,:], Ǝ, i)
         if i == W # if M[i,:,i,:] == I(d)
             bR = YR
             Ǝ[:,i,:] = 工Ɔlinear(A, c, ɔ, bR)
