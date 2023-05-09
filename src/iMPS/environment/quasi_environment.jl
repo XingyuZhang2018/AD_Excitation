@@ -11,17 +11,16 @@ function 工Ɔlinear(T, C, Ɔ, Ɔb)
 end
 
 function envir_MPO(A, M, c, ɔ)
-    χ,d,_ = size(A)
-    W     = size(M, 1)
+    χ = size(A, 1)
+    W = size(M, 1)
     atype = _arraytype(A)
-    x = atype == Array ? zeros(ComplexF64, χ,W,χ) : CUDA.zeros(ComplexF64, χ,W,χ)
-    E = Zygote.Buffer(x)
-    Ǝ = Zygote.Buffer(x)
+    E = Zygote.Buffer(A, χ,W,χ)
+    Ǝ = Zygote.Buffer(A, χ,W,χ)
     # c,ɔ = env_norm(A)
 
     E[:,W,:] = c
     for i in W-1:-1:1
-        YL = atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
+        YL = Zygote.@ignore atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
         for j in i+1:W
             YL += ein"(abc,db),(ae,edf)->cf"(A,M[j,:,i,:],E[:,j,:],conj(A))
         end
@@ -35,7 +34,7 @@ function envir_MPO(A, M, c, ɔ)
 
     Ǝ[:,1,:] = ɔ
     for i in 2:W
-        YR = atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
+        YR = Zygote.@ignore atype == Array ? zeros(ComplexF64, χ,χ) : CUDA.zeros(ComplexF64, χ,χ)
         for j in 1:i-1
             YR += ein"((abc,db),cf),edf->ae"(A,M[i,:,j,:],Ǝ[:,j,:],conj(A))
         end

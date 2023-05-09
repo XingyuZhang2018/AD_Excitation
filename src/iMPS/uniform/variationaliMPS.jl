@@ -17,12 +17,12 @@ function init_uniform_mps(;D, χ,
                           )
 
     if if_vumps_init
-        in_chkp_file = joinpath(infolder, "groundstate", "canonical_mps_1x1_D$(D)_χ$(χ).jld2")
+        in_chkp_file = joinpath(infolder, "canonical_mps_1x1_D$(D)_χ$(χ).jld2")
         A, = load(in_chkp_file)["ALCAR"]
         A = atype(reshape(A, χ,D,χ))
         verbose && println("load canonical mps from $in_chkp_file")
     else
-        in_chkp_file = joinpath(infolder, "groundstate", "uniform_mps_D$(D)_χ$(χ).jld2")
+        in_chkp_file = joinpath(infolder, "uniform_mps_D$(D)_χ$(χ).jld2")
         if isfile(in_chkp_file)
             A = atype(load(in_chkp_file)["A"])
             verbose && println("load mps from $in_chkp_file")
@@ -61,14 +61,15 @@ end
 
 function envir(A; infolder = Defaults.infolder, outfolder = Defaults.outfolder)
     χ, D, _ = size(A)
+    atype = _arraytype(A)
     Zygote.@ignore begin
         in_chkp_file = joinpath([infolder, "env", "D$(D)_χ$(χ).jld2"]) 
         if isfile(in_chkp_file)
             # println("environment load from $(in_chkp_file)")
-            L_n,R_n = load(in_chkp_file)["env"]
+            L_n, R_n = map(atype, load(in_chkp_file)["env"])
         else
-            L_n = _arraytype(A)(rand(eltype(A), size(A,1), size(A,1)))
-            R_n = _arraytype(A)(rand(eltype(A), size(A,3), size(A,3)))
+            L_n = atype(rand(eltype(A), size(A,1), size(A,1)))
+            R_n = atype(rand(eltype(A), size(A,3), size(A,3)))
         end 
     end
     _, L_n = norm_L(A, conj(A), L_n)
@@ -76,7 +77,7 @@ function envir(A; infolder = Defaults.infolder, outfolder = Defaults.outfolder)
 
     Zygote.@ignore begin
         out_chkp_file = joinpath([outfolder,"env","D$(D)_χ$(χ).jld2"]) 
-        save(out_chkp_file, "env", (L_n, R_n))
+        save(out_chkp_file, "env", map(Array, (L_n, R_n)))
     end
     return L_n, R_n
 end
@@ -119,8 +120,8 @@ function find_groundstate(model, alg::ADMPS;
                           if_vumps_init = false
                           )
 
-     infolder = joinpath( infolder, "$model")
-    outfolder = joinpath(outfolder, "$model")
+     infolder = joinpath( infolder, "$model", "groundstate")
+    outfolder = joinpath(outfolder, "$model", "groundstate")
 
     if if4site
         H = atype(MPO_2x2(model))
@@ -129,7 +130,7 @@ function find_groundstate(model, alg::ADMPS;
     end
 
     D = size(H,2)
-    f(A) = ifMPO ? (if4site ? real(energy_gs_MPO(A, H; infolder=infolder, outfolder=outfolder))/4 : real(energy_gs_MPO(A, H; infolder=infolder, outfolder=outfolder))) : real(energy_gs(A, H; infolder=infolder, outfolder=outfolder))
+    f(A) = ifMPO ? (if4site ? real(energy_gs_MPO(atype(A), H; infolder=infolder, outfolder=outfolder))/4 : real(energy_gs_MPO(atype(A), H; infolder=infolder, outfolder=outfolder))) : real(energy_gs(atype(A), H; infolder=infolder, outfolder=outfolder))
     A = init_uniform_mps(;D, χ, 
                           atype = atype, 
                           infolder = infolder,
@@ -137,7 +138,7 @@ function find_groundstate(model, alg::ADMPS;
                           if_vumps_init = if_vumps_init
                          )
     
-    g(A) = Zygote.gradient(f,A)[1]
+    g(A) = Zygote.gradient(f,atype(A))[1]
     res = optimize(f, g, 
                    A, alg.optimmethod, inplace = false,
                    Optim.Options(f_tol = alg.tol, iterations = alg.maxiter,

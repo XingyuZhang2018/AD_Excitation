@@ -76,7 +76,7 @@ dAd  = -   L  ───┼───  ξl
 ```
 """
 
-function ChainRulesCore.rrule(::typeof(norm_L), Au::AbstractArray{T}, Ad::AbstractArray{T}, L::AbstractArray{T}; kwargs...) where {T}
+function ChainRulesCore.rrule(::typeof(norm_L), Au, Ad, L; kwargs...)
     λl, L = norm_L(Au, Ad, L)
     function back((dλ, dL))
         dL -= Array(ein"ab,ab ->"(conj(L), dL))[] * L
@@ -112,7 +112,7 @@ dAu  = -   E ── M ── ξE       ├─ d ─┼─ e ─┤
            └──     ──┘        f ────┴──── h 
 ```
 """
-function ChainRulesCore.rrule(::typeof(env_E), Au::AbstractArray{T}, Ad::AbstractArray{T}, M::AbstractArray{T}, E::AbstractArray{T}; kwargs...) where {T}
+function ChainRulesCore.rrule(::typeof(env_E), Au, Ad, M, E; kwargs...)
     λ, E = env_E(Au, Ad, M, E)
     function back((dλ, dE))
         ξE, info = linsolve(Ǝ -> ein"((abc,ceh),dgeb),fgh -> adf"(Au,Ǝ,M,Ad), permutedims(dE, (3, 2, 1)), -λ, 1)

@@ -33,7 +33,7 @@ end
     @show norm(Zygote.gradient(foo1, A)[1])  norm(num_grad(foo1, A))
 end
 
-@testset "1D Heisenberg ground energy with $atype" for atype in [Array]
+@testset "1D Heisenberg ground energy with $atype" for atype in [CuArray]
     Random.seed!(100)
     # _, e = find_groundstate(J1J2(4, 0.4), ADMPS();
     #                         χ = 16,

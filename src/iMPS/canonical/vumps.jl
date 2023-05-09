@@ -17,7 +17,7 @@ function init_canonical_mps(;Ni = 1, Nj = 1, D, χ, targχ = χ,
                              ifADinit = false
                             )
 
-    in_chkp_file = joinpath(infolder, "groundstate", "canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(χ).jld2")
+    in_chkp_file = joinpath(infolder, "canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(χ).jld2")
     if isfile(in_chkp_file) && !ifADinit
         AL = atype(rand(ComplexF64, targχ,D,targχ,Ni,Nj)) * 1e-6
         AR = atype(rand(ComplexF64, targχ,D,targχ,Ni,Nj)) * 1e-6
@@ -28,7 +28,7 @@ function init_canonical_mps(;Ni = 1, Nj = 1, D, χ, targχ = χ,
     else
         A = atype(rand(ComplexF64, χ,D,χ,Ni,Nj))
         if ifADinit
-            in_chkp_file = joinpath(infolder, "groundstate", "uniform_mps_D$(D)_χ$(χ).jld2")
+            in_chkp_file = joinpath(infolder, "uniform_mps_D$(D)_χ$(χ).jld2")
             A = reshape(atype(load(in_chkp_file)["A"]), χ, D, χ, Ni, Nj)
             verbose && println("load mps from $in_chkp_file")
         end
@@ -61,7 +61,7 @@ function find_groundstate(model::HamiltonianModel,
 
     AL, C, AR = init_canonical_mps(;Ni = Ni, Nj = Nj, D = D, χ = χ, targχ = targχ,
                                     atype = atype,
-                                    infolder = joinpath(infolder, "$model"),
+                                    infolder = joinpath(infolder, "$model", "groundstate"),
                                     ifADinit = ifADinit,
                                     verbose = verbose
                                    )

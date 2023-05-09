@@ -14,7 +14,7 @@ using LinearAlgebra
     end
 end
 
-@testset "vumps" for Ni in [1], Nj in [1], atype in [Array]
+@testset "vumps" for Ni in [1], Nj in [1], atype in [CuArray]
     Random.seed!(100)
     χ = 16
     targχ = 16
