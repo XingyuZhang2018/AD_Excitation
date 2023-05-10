@@ -81,7 +81,7 @@ function find_groundstate(model::HamiltonianModel,
         AC = ALCtoAC(AL,C)
         λAC, AC = ACenv(AC, E, M, Ǝ)
          λC,  C =  Cenv( C, E,    Ǝ)
-        energy = sum(λAC - λC)/Nj
+        energy = real(sum(λAC - λC)/Nj)
         if4site && (energy /= 4)
         AL, AR, errL, errR = ACCtoALAR(AC, C)
         err = errL + errR
