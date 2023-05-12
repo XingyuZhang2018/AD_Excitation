@@ -21,8 +21,13 @@ function init_canonical_mps(;Ni = 1, Nj = 1, D, χ, targχ = χ,
     if isfile(in_chkp_file) && !ifADinit
         AL = atype(rand(ComplexF64, targχ,D,targχ,Ni,Nj)) * 1e-6
         AR = atype(rand(ComplexF64, targχ,D,targχ,Ni,Nj)) * 1e-6
-            C = atype(rand(ComplexF64, targχ,  targχ,Ni,Nj)) * 1e-6
+         C = atype(rand(ComplexF64, targχ,  targχ,Ni,Nj)) * 1e-6
         AL[1:χ,:,1:χ,:,:], C[1:χ,1:χ,:,:], AR[1:χ,:,1:χ,:,:] = map(atype, load(in_chkp_file)["ALCAR"])
+        if targχ > χ
+            AL, L, _ =  leftorth(AL)
+            R, AR, _ = rightorth(AR)
+            C        =     LRtoC(L,R)
+        end
         verbose && println("load canonical mps from $in_chkp_file")
         verbose && targχ > χ && println("and increase χ from $(χ) to $(targχ)")
     else
