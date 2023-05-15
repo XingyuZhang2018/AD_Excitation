@@ -12,6 +12,7 @@ function parse_commandline()
         "--atype"
             help = "atype"
             arg_type = String
+            default = "CuArray"
         "--kx"
             arg_type = Float64
             required = true

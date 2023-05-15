@@ -6,7 +6,6 @@
 module load julia-1.7.1
 project_dir=~/research/AD_Excitation
 julia --project=${project_dir} ${project_dir}/project/vumps.jl \
-      --if_json_config false \
-      --model J1J2(4,0.4) \
-      --chi 1024 \
+      --model "J1J2(7,0.4)" \
+      --chi 128 \
       --if4site true

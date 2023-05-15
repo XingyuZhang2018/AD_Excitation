@@ -1,31 +1,44 @@
 #!/bin/bash
 
-# global variables
-W=6
-chi=128
-
 # create sbatch jobfile
-for kx in $(seq $[-$W/2] 1 $[$W/2])
+for W in $(seq 7 1 7)
 do 
-    for ky in $(seq $[-$W/2] 1 $[$W/2])
+    for chi_i in $(seq 6 1 7)
     do
-        sed \
-        -e "s/\"model\": .*/\"model\": \"Kitaev(${W})\",/g" \
-        -e "s/\"χ\": .*/\"χ\": ${chi},/g" \
-        -e "s/\"targχ\": .*/\"targχ\": ${chi},/g" \
-        -e "s/\"k\": .*/\"k\": [${kx},${ky}]/g" \
-        config.json > W${W}_chi${chi}_kx${kx}_ky${ky}.json && \
-        sed \
-        -e "s/config.json/W${W}_chi${chi}_kx${kx}_ky${ky}.json/g" \
-        excitation.sh > W${W}_chi${chi}_kx${kx}_ky${ky}.sh
+        for J2 in $(seq 0.1 0.1 0.5)
+        do
+            for kx in $(seq $[-0] 1 $[0])
+            do 
+                for ky in $(seq $[-0] 1 $[0])
+                do
+                    chi=$((2**chi_i))
+                    sed \
+                    -e "s|--partition=a800|--partition=v100|g" \
+                    -e "s|--model .*|--model \"J1J2($W,$J2)\" \\\|g" \
+                    -e "s|--chi .*|--chi $chi \\\|g" \
+                    -e "s|--kx .*|--kx $kx \\\|g" \
+                    -e "s|--ky .*|--ky $ky \\\|g" \
+                    excitation.sh > W${W}_J2-${J2}_chi${chi}_kx${kx}_ky${ky}.sh
+                done
+            done
+        done
     done
 done
 
 # run jobfile
-for kx in $(seq $[-$W/2] 1 $[$W/2])
+for W in $(seq 7 1 7)
 do 
-    for ky in $(seq $[-$W/2] 1 $[$W/2])
+    for chi_i in $(seq 6 1 7)
     do
-        chi=$[2**$[chi_i]] && sbatch W${W}_chi${chi}_kx${kx}_ky${ky}.sh && rm W${W}_chi${chi}_kx${kx}_ky${ky}.sh
+        for J2 in $(seq 0.1 0.1 0.5)
+        do
+            for kx in $(seq $[-0] 1 $[0])
+            do 
+                for ky in $(seq $[-0] 1 $[0])
+                do
+                    chi=$[2**$[chi_i]] && sbatch W${W}_J2-${J2}_chi${chi}_kx${kx}_ky${ky}.sh && rm W${W}_J2-${J2}_chi${chi}_kx${kx}_ky${ky}.sh
+                done
+            done
+        done
     done
 done
