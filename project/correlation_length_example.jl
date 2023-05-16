@@ -2,7 +2,7 @@ using AD_Excitation
 using CUDA
 using OMEinsum
 
-for J2 in [0.4], χ in [512], W in [4]
+for J2 in 0.0:0.1:0.0, χ in 2 .^ (7:9), W in 7:7
     model = J1J2(W, J2)
     @time correlation_length(model; 
                              atype=CuArray, 
