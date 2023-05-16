@@ -264,11 +264,11 @@ function spin_config(model;
     Sx, Sy, Sz = const_Sx(S), const_Sy(S), const_Sz(S)
 
     if if4site             
-        ISx, ISy, ISz = I_S(Sx), I_S(Sy), I_S(Sz)
+        ISx, ISy, ISz = atype.(I_S(Sx)), atype.(I_S(Sy)), atype.(I_S(Sz))
 
-        Sx_s = [real(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISx[i],conj(AL),conj(C)))[] for i in 1:4]
-        Sy_s = [real(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISy[i],conj(AL),conj(C)))[] for i in 1:4]
-        Sz_s = [real(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISz[i],conj(AL),conj(C)))[] for i in 1:4]
+        Sx_s = [real(Array(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISx[i],conj(AL),conj(C))))[] for i in 1:4]
+        Sy_s = [real(Array(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISy[i],conj(AL),conj(C))))[] for i in 1:4]
+        Sz_s = [real(Array(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISz[i],conj(AL),conj(C))))[] for i in 1:4]
 
         outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
         !isdir(outfolder) && mkpath(outfolder)
