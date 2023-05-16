@@ -1,6 +1,6 @@
 export load_canonical_excitaion
 export energy_gs_canonical_MPO
-export spectral_weight, correlation_length
+export spectral_weight, correlation_length, spin_config
 
 function load_canonical_excitaion(infolder, model, Nj, D, χ, k)
     kx, ky = k
@@ -209,4 +209,85 @@ function correlation_length(model; Nj, χ, infolder, outfolder, atype, ifmerge, 
     # env_ɔ(AR, conj(AR);
     #       ifcor_len=true, 
     #       outfolder=outfolder)
+end
+
+"""
+    spin_config(spin_config(model; 
+                Nj = 1, χ, 
+                infolder = Defaults.infolder,
+                atype = Defaults.atype,
+                ifmerge = false, 
+                if4site = true
+                )
+site label
+```
+    │  │ 
+   ─3──4─
+    │  │  
+   ─1──2─
+    │  │ 
+```
+```
+"""
+function spin_config(model; 
+                     Nj = 1, χ, 
+                     infolder = Defaults.infolder,
+                     atype = Defaults.atype,
+                     ifmerge = false, 
+                     if4site = true
+                     )
+
+    Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
+    D1 = size(Mo, 1)
+    D2 = size(Mo, 2)
+    if ifmerge
+        M = reshape(ein"abcg,cdef->abdegf"(Mo,Mo), (D1, D2^2, D1, D2^2, 1, 1))
+    else
+        M = atype(zeros(ComplexF64, (size(Mo)...,1,Nj)))
+        for j in 1:Nj
+            M[:,:,:,:,1,j] = Mo
+        end
+    end
+    groundstate_folder = joinpath(infolder, "$model", "groundstate")
+    AL, C, AR = init_canonical_mps(;infolder = groundstate_folder, 
+                                    atype = atype,  
+                                    Nj = Nj,      
+                                    D = D2, 
+                                    χ = χ)
+    if ifmerge
+        AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        C = reshape(C[:,:,1,2], (χ, χ, 1, 1))
+    end
+
+    S = model.S                       
+    Sx, Sy, Sz = const_Sx(S), const_Sy(S), const_Sz(S)
+
+    if if4site             
+        ISx, ISy, ISz = I_S(Sx), I_S(Sy), I_S(Sz)
+
+        Sx_s = [real(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISx[i],conj(AL),conj(C)))[] for i in 1:4]
+        Sy_s = [real(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISy[i],conj(AL),conj(C)))[] for i in 1:4]
+        Sz_s = [real(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISz[i],conj(AL),conj(C)))[] for i in 1:4]
+
+        outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
+        !isdir(outfolder) && mkpath(outfolder)
+        logfile = open("$outfolder/spin_config.log", "w")
+        message = 
+"
+Sx:
+$(Sx_s[3]) $(Sx_s[4])
+$(Sx_s[1]) $(Sx_s[2])
+Sy:
+$(Sy_s[3]) $(Sy_s[4])
+$(Sy_s[1]) $(Sy_s[2])
+Sz:
+$(Sz_s[3]) $(Sz_s[4])
+$(Sz_s[1]) $(Sz_s[2])
+"
+        write(logfile, message)
+        close(logfile)
+        println("save spectral weight to $logfile")
+        println(message)
+    end
 end
