@@ -1,11 +1,16 @@
 using AD_Excitation
 using ArgParse
 using CUDA
+using Random
 
 function parse_commandline()
     s = ArgParseSettings()
 
     @add_arg_table! s begin
+        "--seed"
+            help = "seed"
+            arg_type = Int
+            default = 100
         "--model"
             help = "model"
             arg_type = String
@@ -58,6 +63,7 @@ function main()
 
     model = eval(Meta.parse(parsed_args["model"]))
     atype = eval(Meta.parse(parsed_args["atype"]))
+    seed = parsed_args["seed"]
     maxiter = parsed_args["maxiter"]
     tol = parsed_args["tol"]
     Ni = parsed_args["Ni"]
@@ -68,6 +74,7 @@ function main()
     verbose = parsed_args["verbose"]
     if4site = parsed_args["if4site"]
 
+    Random.seed!(seed)
     find_groundstate(model, VUMPS(maxiter = maxiter, tol = tol);
                      Ni = Ni, Nj = Nj,
                      χ = χ,

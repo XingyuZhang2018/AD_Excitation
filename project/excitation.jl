@@ -1,11 +1,16 @@
 using AD_Excitation
 using ArgParse
 using CUDA
+using Random
 
 function parse_commandline()
     s = ArgParseSettings()
 
     @add_arg_table! s begin
+        "--seed"
+            help = "seed"
+            arg_type = Int
+            default = 100
         "--model"
             help = "model"
             arg_type = String
@@ -64,6 +69,7 @@ function main()
 
     model = eval(Meta.parse(parsed_args["model"]))
     atype = eval(Meta.parse(parsed_args["atype"]))
+    seed = parsed_args["seed"]
     kx = parsed_args["kx"]
     ky = parsed_args["ky"]
     n = parsed_args["n"]
@@ -76,6 +82,7 @@ function main()
     if4site = parsed_args["if4site"]
     ifmerge = parsed_args["ifmerge"]
 
+    Random.seed!(seed)
     @time excitation_spectrum_canonical_MPO(model, (kx*2*pi/model.W,ky*2*pi/model.W), n;
                                             Ni = Ni, Nj = Nj,
                                             χ = χ,
