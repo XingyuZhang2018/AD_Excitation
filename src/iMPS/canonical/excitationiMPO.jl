@@ -204,7 +204,8 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
                                            atype = Array,
                                            ifmerge::Bool = false,
                                            if4site::Bool = false,
-                                           infolder = "../data/", outfolder = "../data/")
+                                           infolder = "../data/", outfolder = "../data"
+                                           )
 
     M, AL, C, AR, AC, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR, VL = canonical_exci_env(model, Nj, χ;  
             infolder = infolder, atype = atype, ifmerge = ifmerge, if4site = if4site)
@@ -233,11 +234,11 @@ function save_canonical_excitaion(outfolder, W, Nj, D, χ, k, Δ, VL, X)
     kx, ky = k
     filepath = joinpath(outfolder, "canonical/Nj$(Nj)_D$(D)_χ$(χ)/")
     !(ispath(filepath)) && mkpath(filepath)
-    logfile = open("$filepath/kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).log", "w")
+    logfile = W==1 ? open("$filepath/k$(round(kx/pi, digits=8)).log", "w") : open("$filepath/kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).log", "w")
     write(logfile, "$(Δ)")
     close(logfile)
 
-    out_chkp_file = "$filepath/excitaion_VLX_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).jld2"
+    out_chkp_file = W==1 ? "$filepath/excitaion_VLX_k$(round(kx/pi, digits=8)).jld2" : "$filepath/excitaion_VLX_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).jld2"
     save(out_chkp_file, "VLX", (Array(VL), map(Array, X)))
     println("excitaion file saved @$logfile")
 end

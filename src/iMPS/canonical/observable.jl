@@ -1,13 +1,13 @@
 export load_canonical_excitaion
 export energy_gs_canonical_MPO
-export spectral_weight, correlation_length, spin_config
+export spectral_weight, correlation_length, spin_config, S2_total
 
 function load_canonical_excitaion(infolder, model, Nj, D, χ, k)
     kx, ky = k
     W = model.W
     infolder = joinpath(infolder, "$model")
     filepath = joinpath(infolder, "canonical/Nj$(Nj)_D$(D)_χ$(χ)/")
-    chkp_file = "$filepath/excitaion_VLX_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).jld2"
+    chkp_file = W==1 ? "$filepath/excitaion_VLX_k$(round(kx/pi, digits=8)).jld2" : "$filepath/excitaion_VLX_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).jld2"
     println("load canonical excitaion from $chkp_file")
     load(chkp_file)["VLX"]
 end
@@ -46,7 +46,7 @@ end
 
         ┌───AC──┬───AR──┐
         │   │   │   │   │
-        │   │   s3  S   │
+        │   │   s3  S   │       (removed by gauge)
         │   │   │   │   │
         └───B*──┴───AR*─┘
 
@@ -65,9 +65,7 @@ function ω(W, k, AC, AL, AR, S, B, ƆLL, CRR)
 
     # 2. AS and B on different sites of M
     CS = einCS(W, k, AL, S, ƆLL)
-    SƆ = einSƆ(W, k, AR, S, CRR)
-    ωk += ein"(abcij,deij),abdij->"(AC,SƆ,conj(B)) + 
-          ein"(abcij,adij),dbcij->"(AC,CS,conj(B))
+    ωk += ein"(abcij,adij),dbcij->"(AC,CS,conj(B))
           
     return abs2(Array(ωk)[])
 end
@@ -93,27 +91,6 @@ function einCS(W, k, AL, S, Ɔ)
     return CS
 end
 
-"""
-    ```
-    ─┬───AR──┐          a ────┬────┐
-     │   │   │                b    │
-     s3  S   │                │    c
-     │   │   │                d    │
-    ─┴───AR*─┘          e ────┴────┘
-    ```
-"""
-function einSƆ(W, k, AR, S, C)
-    kx, ky = k
-    工Ɔ = ein"(abcij,db),edcij->aeij"(AR, S, conj(AR))
-    coef = series_coef_R(k, W)
-    工Ɔs = sum(collect(Iterators.take(iterated(x->工Ɔmap(x, AR, AR), 工Ɔ), W)) .* coef)
-    χ = size(AR,1)
-    Ɔ = _arraytype(AR)(reshape(I(χ), (χ,χ,1,1)))
-    SƆ, info = linsolve(SƆ->SƆ - exp(-1.0im * kx) * nth(iterated(x->工Ɔmap(x, AR, AR), SƆ), W+1) + exp(-1.0im * kx) * ein"(abij,abij),cdij->cdij"(C, SƆ, Ɔ), 工Ɔs)
-    @assert info.converged == 1
-    return SƆ
-end
-
 function S_4site(model, k)
     S = model.S
     kx, ky = k
@@ -123,23 +100,20 @@ function S_4site(model, k)
     [(contract4([S,Id,Id,Id]) + exp(1.0im * ky) * contract4([Id,S,Id,Id]) + exp(1.0im * kx) *contract4([Id,Id,S,Id]) + exp(1.0im * kx + 1.0im * ky) * contract4([Id,Id,Id,S]))/4 for S in Sα]
 end
 
+"""
+
+    get the spectral weight `|<Ψₖ(B)|Sₖ|Ψₖ(A)>|²`
+"""
 function spectral_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerge, if4site)
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
-    D1 = size(Mo, 1)
     D2 = size(Mo, 2)
-    if ifmerge
-        M = reshape(ein"abcg,cdef->abdegf"(Mo,Mo), (D1, D2^2, D1, D2^2, 1, 1))
-    else
-        M = atype(zeros(ComplexF64, (size(Mo)...,1,Nj)))
-        for j in 1:Nj
-            M[:,:,:,:,1,j] = Mo
-        end
-    end
+
     AL, C, AR = init_canonical_mps(;infolder = joinpath(infolder, "$model", "groundstate"), 
                                     atype = atype,  
                                     Nj = Nj,      
                                     D = D2, 
                                     χ = χ)
+
     if ifmerge
         AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
         AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
@@ -177,24 +151,72 @@ function spectral_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerg
     return ωk
 end
 
+function S2_1site(model)
+    S = model.S
+    Sα = const_Sx(S), const_Sy(S), const_Sz(S)
+    # sum([ein"ab,bc->ca"(S,S) for S in Sα])
+    # ein"ab,bc->ac"(Sα[3],Sα[3])
+    Sα[3]
+end
+
+function S2_total(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerge, if4site)
+    Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
+    D2 = size(Mo, 2)
+    
+    AL, C, AR = init_canonical_mps(;infolder = joinpath(infolder, "$model", "groundstate"), 
+                                    atype = atype,  
+                                    Nj = Nj,      
+                                    D = D2, 
+                                    χ = χ)
+
+    if ifmerge
+        AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        C = reshape(C[:,:,1,2], (χ, χ, 1, 1))
+    end
+
+    _, CRR = env_c(AR, conj(AR))
+    _, ƆLL = env_ɔ(AL, conj(AL))
+
+    AC = ALCtoAC(AL, C)
+    S2 = if4site ? atype(S2_4site(model, k)) : atype(S2_1site(model))
+    kx, ky = k
+    W = model.W
+    k_config = [k[1], k[2]]
+    if if4site
+        k_config[1] > pi/2 && (k_config[1] = pi-k_config[1])
+        k_config[2] > pi/2 && (k_config[2] = pi-k_config[2])
+        k_config *= 2
+    end
+    VL, X = load_canonical_excitaion(infolder, model, Nj, D2, χ, k_config)
+    VL = atype(VL)
+    X  = atype.(X)
+    S2_t = zeros(Float64, m)
+    for i in 1:m
+        B = ein"abcij,cdij->abdij"(VL, X[i])
+        S2_t[i] = ω(W, k_config, AC, AL, AR, S2, B, ƆLL, CRR)
+    end
+    filepath = joinpath(outfolder, "$model", "canonical/Nj$(Nj)_D$(D2)_χ$(χ)/")
+    if4site && (W *= 2)
+    logfile = W==1 ? open("$filepath/S2_total_k$(round(kx/pi, digits=8)).log", "w") : open("$filepath/S2_total_kx$(round(Int,kx/pi*W/2))_ky$(round(Int,ky/pi*W/2)).log", "w")
+    write(logfile, "$(S2_t)")
+    close(logfile)
+    println("save S2 total to $logfile")
+
+    return S2_t
+end
+
 function correlation_length(model; Nj, χ, infolder, outfolder, atype, ifmerge, if4site)
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
-    D1 = size(Mo, 1)
     D2 = size(Mo, 2)
-    if ifmerge
-        M = reshape(ein"abcg,cdef->abdegf"(Mo,Mo), (D1, D2^2, D1, D2^2, 1, 1))
-    else
-        M = atype(zeros(ComplexF64, (size(Mo)...,1,Nj)))
-        for j in 1:Nj
-            M[:,:,:,:,1,j] = Mo
-        end
-    end
+
     groundstate_folder = joinpath(infolder, "$model", "groundstate")
     AL, C, AR = init_canonical_mps(;infolder = groundstate_folder, 
                                     atype = atype,  
                                     Nj = Nj,      
                                     D = D2, 
                                     χ = χ)
+
     if ifmerge
         AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
         AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
@@ -238,22 +260,15 @@ function spin_config(model;
                      )
 
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
-    D1 = size(Mo, 1)
     D2 = size(Mo, 2)
-    if ifmerge
-        M = reshape(ein"abcg,cdef->abdegf"(Mo,Mo), (D1, D2^2, D1, D2^2, 1, 1))
-    else
-        M = atype(zeros(ComplexF64, (size(Mo)...,1,Nj)))
-        for j in 1:Nj
-            M[:,:,:,:,1,j] = Mo
-        end
-    end
+
     groundstate_folder = joinpath(infolder, "$model", "groundstate")
     AL, C, AR = init_canonical_mps(;infolder = groundstate_folder, 
                                     atype = atype,  
                                     Nj = Nj,      
                                     D = D2, 
                                     χ = χ)
+
     if ifmerge
         AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
         AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))

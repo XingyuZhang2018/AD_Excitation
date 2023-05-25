@@ -11,7 +11,7 @@ function series_coef_L(k, W)
         elseif i > W_half
             coef[i] = exp(i*1.0im*ky + 1.0im*kx)
         else
-            coef[i] = (1 + exp(1.0im*kx))/2 * exp(i*1.0im*ky)
+            coef[i] = W==1 ? exp(1.0im*kx) : (1 + exp(1.0im*kx))/2 * exp(i*1.0im*ky)
         end
     end
     # no approximation
