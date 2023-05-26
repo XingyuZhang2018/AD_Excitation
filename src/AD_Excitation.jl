@@ -3,7 +3,7 @@ module AD_Excitation
     using Parameters 
     using Zygote
 
-    export find_groundstate, VUMPS, ADMPS
+    export find_groundstate, VUMPS, ADMPS, IDMRG1
     export checkpoint
     #default settings
     module Defaults
@@ -32,6 +32,7 @@ module AD_Excitation
     include("iMPS/uniform/excitationiMPS.jl")
     include("iMPS/uniform/excitationiMPO.jl")
     include("iMPS/canonical/vumps.jl")
+    include("iMPS/canonical/idmrg.jl")
     include("iMPS/canonical/excitationiMPO.jl")
     include("iMPS/canonical/observable.jl")
     include("iMPS/autodiff.jl")

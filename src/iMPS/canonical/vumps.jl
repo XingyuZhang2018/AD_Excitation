@@ -74,7 +74,7 @@ function find_groundstate(model::HamiltonianModel,
     
     outfolder = joinpath(outfolder, "$model", "groundstate")
     out_chkp_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).jld2")
-    out_log_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).log")
+    out_log_file = joinpath(outfolder,"vumps_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).log")
     
     err = Inf
     i = 0

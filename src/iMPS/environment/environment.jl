@@ -336,3 +336,46 @@ function overlap(Au, Ad)
     @show ein"(ad,acb),(dce,be) ->"(FLud_n,Au,conj(Ad),FRud_n)[]/ein"ab,ab ->"(FLud_n,FRud_n)[]
     abs2(ein"(ad,acb),(dce,be) ->"(FLud_n,Au,conj(Ad),FRud_n)[]/ein"ab,ab ->"(FLud_n,FRud_n)[])
 end
+
+"""
+    ACm = ACmap2(ACij, FLj, FRj, Mj, II)
+
+```
+                               ┌──────   ACᵢⱼ   ───────┐          a ────┬─────┬──── d  
+┌───── ACᵢ₊₁ⱼ ─────┐           │       │       │       │          │     b     c     │
+│      │     │     │      =    FLᵢⱼ ── Mᵢⱼ ─── Mᵢⱼ₊₁── FRᵢⱼ₊₁     ├─ e ─┼─ f ─┼─ g ─┤ 
+                               │       │       │       │          │     k     l     │ 
+                                                                  h ────┴─────┴──── m 
+                                                               
+```
+"""
+function ACmap2(ACj, FLj, FRj, Mj, Mjr)
+    ACij = ein"(((aehj,abcdj),ekfbj),flgcj),dgmj -> hklmj"(FLj,ACj,Mj,Mjr,FRj)
+    circshift(ACij, (0,0,0,0,1))
+end
+
+"""
+    ACenv2(AC, FL, M, FR;kwargs...)
+
+Compute the up environment tensor for MPS `FL`,`FR` and MPO `M`, by finding the up fixed point
+        of `FL - M - FR` contracted along the physical dimension.
+```
+┌──────   ACᵢⱼ   ───────┐         
+│       │       │       │         =      λACᵢⱼ ┌─── ACᵢ₊₁ⱼ ──┐
+FLᵢⱼ ── Mᵢⱼ ─── Mᵢⱼ₊₁── FRᵢⱼ₊₁                 │    │    │   │   
+│       │       │       │   
+```
+"""
+ACenv2(AC, FL, M, FR; kwargs...) = ACenv2!(copy(AC), FL, M, FR; kwargs...)
+function ACenv2!(AC, FL, M, FR; kwargs...)
+    Ni,Nj = size(M)[[5,6]]
+    λAC = zeros(eltype(AC),Nj)
+    for j in 1:Nj
+        jr = mod1(j+1, Nj) 
+        λACs, ACs, info = eigsolve(X->ACmap2(X, FL[:,:,:,:,j], FR[:,:,:,:,j], M[:,:,:,:,:,j], M[:,:,:,:,:,jr]), AC[:,:,:,:,:,j], 1, :SR; maxiter=100, ishermitian = false, kwargs...)
+        @debug "ACenv! eigsolve" λACs info sort(abs.(λACs))
+        info.converged == 0 && @warn "ACenv Not converged"
+        λAC[j], AC[:,:,:,:,:,j] = selectpos(λACs, ACs, Ni)
+    end
+    return λAC, AC
+end

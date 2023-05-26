@@ -1,5 +1,6 @@
 using AD_Excitation
-using AD_Excitation:norm_L,norm_R,env_E,env_Ǝ,env_c,env_ɔ
+using AD_Excitation:norm_L,norm_R,env_E,env_Ǝ,env_c,env_ɔ, ACenv2, ACmap2
+using TeneT: qrpos, lqpos
 using CUDA
 using KrylovKit
 using LinearAlgebra
@@ -74,5 +75,23 @@ end
     for i in 1:Ni, j in 1:Nj
         jr = j-1 + (j-1<1)*Nj
         @test λɔ[i] * ɔ[:,:,i,jr] ≈ ein"(be,acb), dce -> ad"(ɔ[:,:,i,j],Au[:,:,:,i,j],Ad[:,:,:,i,j])
+    end
+end
+
+@testset "ACenv2 with $atype{$dtype}" for atype in [Array], dtype in [ComplexF64], Ni in [1], Nj in [1]
+    Random.seed!(100)
+    χ = 10
+    D = 2
+    
+    AC = atype(rand(dtype,χ,D,D,χ,Ni,Nj))
+    M  = atype(rand(dtype,D,D,D,D,Ni,Nj))
+
+    E = atype(rand(dtype,χ,D,χ,Ni,Nj))
+    Ǝ = atype(rand(dtype,χ,D,χ,Ni,Nj))
+
+    λAC, AC = ACenv2(AC, E, M, Ǝ)
+    for j in 1:Nj
+        jr = mod1(j+1, Nj)
+        @test λAC[j] * AC[:,:,:,:,:,j] ≈ ACmap2(AC[:,:,:,:,:,j], E[:,:,:,:,j],  Ǝ[:,:,:,:,j], M[:,:,:,:,:,j], M[:,:,:,:,:,jr])
     end
 end
