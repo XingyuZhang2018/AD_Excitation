@@ -11,6 +11,10 @@ function parse_commandline()
             help = "seed"
             arg_type = Int
             default = 100
+        "--alg"
+            help = "algorithm"
+            arg_type = String
+            default = "VUMPS"
         "--model"
             help = "model"
             arg_type = String
@@ -61,6 +65,7 @@ end
 function main()
     parsed_args = parse_commandline()
 
+    alg = eval(Meta.parse(parsed_args["alg"]))
     model = eval(Meta.parse(parsed_args["model"]))
     atype = eval(Meta.parse(parsed_args["atype"]))
     seed = parsed_args["seed"]
@@ -75,7 +80,7 @@ function main()
     if4site = parsed_args["if4site"]
 
     Random.seed!(seed)
-    find_groundstate(model, VUMPS(maxiter = maxiter, tol = tol);
+    find_groundstate(model, alg(maxiter = maxiter, tol = tol);
                      Ni = Ni, Nj = Nj,
                      χ = χ,
                      atype = atype,
