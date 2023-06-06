@@ -91,13 +91,22 @@ function einCS(W, k, AL, S, Ɔ)
     return CS
 end
 
+"""
+```
+    │  │ 
+   ─3──4─
+    │  │  
+   ─1──2─
+    │  │ 
+```
+"""
 function S_4site(model, k)
     S = model.S
     kx, ky = k
     Sα = const_Sx(S), const_Sy(S), const_Sz(S)
     d = Int(2*S + 1)
     Id = I(d)
-    [(contract4([S,Id,Id,Id]) + exp(1.0im * ky) * contract4([Id,S,Id,Id]) + exp(1.0im * kx) *contract4([Id,Id,S,Id]) + exp(1.0im * kx + 1.0im * ky) * contract4([Id,Id,Id,S]))/4 for S in Sα]
+    [(contract4([S,Id,Id,Id]) + exp(1.0im * kx) * contract4([Id,S,Id,Id]) + exp(1.0im * ky) *contract4([Id,Id,S,Id]) + exp(1.0im * kx + 1.0im * ky) * contract4([Id,Id,Id,S]))/4 for S in Sα]
 end
 
 """
