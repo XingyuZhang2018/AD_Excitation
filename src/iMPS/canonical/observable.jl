@@ -144,6 +144,7 @@ function spectral_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerg
     end
     VL, X = load_canonical_excitaion(infolder, model, Nj, D2, χ, k_config)
     VL = atype(VL)
+    norm(ein"abcij,abdij->cdij"(VL, conj(AL))) < 1e-10 || error("VL and AL are not orthogonal")
     X  = atype.(X)
     ωk = zeros(Float64, m)
     for i in 1:m
