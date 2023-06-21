@@ -111,7 +111,7 @@ end
 
 """
 
-    get the spectral weight `|<Ψₖ(B)|Sₖ|Ψₖ(A)>|²`
+    get the spectral weight `|<Ψₖ(B)|Sₖ|Ψ(A)>|²`
 """
 function spectral_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerge, if4site)
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
@@ -136,7 +136,7 @@ function spectral_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerg
     S_4s = atype.(S_4site(model, k))
     kx, ky = k
     W = model.W
-    k_config = [k[1], k[2]]
+    k_config = Float64.([kx, ky])
     if if4site
         k_config[1] > pi/2 && (k_config[1] = pi-k_config[1])
         k_config[2] > pi/2 && (k_config[2] = pi-k_config[2])
@@ -144,6 +144,7 @@ function spectral_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerg
     end
     VL, X = load_canonical_excitaion(infolder, model, Nj, D2, χ, k_config)
     VL = atype(VL)
+    norm(ein"abcij,abdij->cdij"(VL, conj(AL))) < 1e-10 || error("VL and AL are not orthogonal")
     X  = atype.(X)
     ωk = zeros(Float64, m)
     for i in 1:m
@@ -287,12 +288,13 @@ function spin_config(model;
     S = model.S                       
     Sx, Sy, Sz = const_Sx(S), const_Sy(S), const_Sz(S)
 
+    AC = ALCtoAC(AL, C)
     if if4site             
         ISx, ISy, ISz = atype.(I_S(Sx)), atype.(I_S(Sy)), atype.(I_S(Sz))
 
-        Sx_s = [real(Array(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISx[i],conj(AL),conj(C))))[] for i in 1:4]
-        Sy_s = [real(Array(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISy[i],conj(AL),conj(C))))[] for i in 1:4]
-        Sz_s = [real(Array(ein"(((abcij,cdij),eb),aefij),fdij ->"(AL,C,ISz[i],conj(AL),conj(C))))[] for i in 1:4]
+        Sx_s = [real(Array(ein"abcij,db,adcij ->"(AC,ISx[i],conj(AC))))[] for i in 1:4]
+        Sy_s = [real(Array(ein"abcij,db,adcij ->"(AC,ISy[i],conj(AC))))[] for i in 1:4]
+        Sz_s = [real(Array(ein"abcij,db,adcij ->"(AC,ISz[i],conj(AC))))[] for i in 1:4]
 
         outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
         !isdir(outfolder) && mkpath(outfolder)

@@ -1,22 +1,22 @@
 using AD_Excitation
 using CUDA
 
-find_groundstate(J1J2(4,0.4), IDMRG1(maxiter=1000);
+# find_groundstate(J1J2(6,0.42), IDMRG1(maxiter=1000);
+#                  Ni = 1, Nj = 1,
+#                  χ = 64,
+#                  atype = CuArray,
+#                  infolder = "./data/",
+#                  outfolder = "./data/",
+#                  verbose = true,
+#                  ifADinit = false,
+#                  if4site = true
+#                  );
+find_groundstate(J1J2(6,0.42), VUMPS(maxiter=1000);
                  Ni = 1, Nj = 1,
-                 χ = 16,
+                 χ = 64,
                  atype = CuArray,
-                 infolder = "../data/",
-                 outfolder = "../data/",
-                 verbose = true,
-                 ifADinit = false,
-                 if4site = true
-                 );
-find_groundstate(J1J2(4,0.4), VUMPS(maxiter=1000);
-                 Ni = 1, Nj = 1,
-                 χ = 16,
-                 atype = Array,
-                 infolder = "../data/",
-                 outfolder = "../data/",
+                 infolder = "./data/",
+                 outfolder = "./data/",
                  verbose = true,
                  ifADinit = false,
                  if4site = true
