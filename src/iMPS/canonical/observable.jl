@@ -146,10 +146,10 @@ function spectral_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerg
     VL = atype(VL)
     norm(ein"abcij,abdij->cdij"(VL, conj(AL))) < 1e-10 || error("VL and AL are not orthogonal")
     X  = atype.(X)
-    ωk = zeros(Float64, m)
+    ωk = zeros(Float64, m, 3)
     for i in 1:m
         B = ein"abcij,cdij->abdij"(VL, X[i])
-        ωk[i] = sum([ω(W, k_config, AC, AL, AR, S, B, ƆLL, CRR) for S in S_4s])
+        ωk[i, :] = [ω(W, k_config, AC, AL, AR, S, B, ƆLL, CRR) for S in S_4s]
     end
     filepath = joinpath(outfolder, "$model", "canonical/Nj$(Nj)_D$(D2)_χ$(χ)/")
     if4site && (W *= 2)
