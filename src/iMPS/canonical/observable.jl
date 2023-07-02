@@ -1,6 +1,6 @@
 export load_canonical_excitaion
 export energy_gs_canonical_MPO
-export spectral_weight, spectral_weight_dimer, correlation_length, spin_config, S2_total
+export spectral_weight, spectral_weight_dimer, correlation_length, spin_config, mag2, S2_total
 
 function load_canonical_excitaion(infolder, model, Nj, D, χ, k)
     kx, ky = k
@@ -551,7 +551,97 @@ $(Sz_s[1]) $(Sz_s[2])
 "
         write(logfile, message)
         close(logfile)
-        println("save spectral weight to $logfile")
+        println("save spin_config to $logfile")
         println(message)
+    end
+end
+
+"""
+    mag2(model, k;
+       Nj = 1, χ, 
+       infolder = Defaults.infolder,
+       atype = Defaults.atype,
+       ifmerge = false, 
+       if4site = true
+       )
+
+    mag2 = <Si⋅Sj>exp(ik⋅(i-j))
+
+site label
+```
+    │  │ 
+   ─3──4─
+    │  │  
+   ─1──2─
+    │  │ 
+```
+```
+"""
+function mag2(model, k; 
+              Nj = 1, χ, 
+              infolder = Defaults.infolder,
+              atype = Defaults.atype,
+              ifmerge = false, 
+              if4site = true
+              )
+
+    Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
+    D2 = size(Mo, 2)
+
+    groundstate_folder = joinpath(infolder, "$model", "groundstate")
+    AL, C, AR = init_canonical_mps(;infolder = groundstate_folder, 
+                                    atype = atype,  
+                                    Nj = Nj,      
+                                    D = D2, 
+                                    χ = χ)
+
+    if ifmerge
+        AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        C = reshape(C[:,:,1,2], (χ, χ, 1, 1))
+    end
+                  
+    S_4s = atype.(SS_4site(model, k))
+    S_4v1s, S_4v2s = SS_4site_v(model, k)
+    S_4h1s, S_4h2s = SS_4site_h(model, k)
+
+    AC = ALCtoAC(AL, C)
+    Sij(S) = real(Array(ein"abcij,db,adcij ->"(AC,S,conj(AC))))[]
+    function Sij2(S)
+        ωk_l = ein"(abcij,db),adeij->ceij"(AL,atype(S[1]),conj(AL))
+        real(Array(ein"((aeij,abcij),db),edcij->"(ωk_l,AC,atype(S[2]),conj(AC)))[])
+    end
+    function SijW(S)
+        ωk_l = ein"(abcij,db),adeij->ceij"(AL,atype(S[1]),conj(AL))
+        ωk_l = nth(iterated(x->C工map(x, AL, AL), ωk_l), model.W-1)
+        real(Array(ein"((aeij,abcij),db),edcij->"(ωk_l,AC,atype(S[2]),conj(AC)))[])
+    end
+
+    if if4site             
+        S_onsite = [Sij(S_4s[i]) for i in 1:3]
+        S_v1     = [Sij2(S_4v1s[i]) for i in 1:3] 
+        S_v2     = [Sij2(S_4v2s[i]) for i in 1:3] 
+        S_h1     = [SijW(S_4h1s[i]) for i in 1:3]
+        S_h2     = [SijW(S_4h2s[i]) for i in 1:3]
+
+        mag2_tol = S_onsite + S_v1 + S_v2 + S_h1 + S_h2
+        outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
+        !isdir(outfolder) && mkpath(outfolder)
+        logfile = open("$outfolder/m2.log", "w")
+        message = 
+"
+Sx:
+$(mag2_tol[1])
+Sy:
+$(mag2_tol[2])
+Sz:
+$(mag2_tol[3])
+"
+        write(logfile, message)
+        close(logfile)
+        println("save mag2 to $logfile")
+        println(message)
+
+        return mag2_tol
     end
 end
