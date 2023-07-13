@@ -1,6 +1,6 @@
 export load_canonical_excitaion
 export energy_gs_canonical_MPO
-export spectral_weight, spectral_weight_dimer, correlation_length, spin_config, mag2, S2_total
+export spectral_weight, spectral_weight_dimer, correlation_length, spin_config, SS_correlation
 
 function load_canonical_excitaion(infolder, model, Nj, D, χ, k)
     kx, ky = k
@@ -198,7 +198,7 @@ function ω3(W, k, AC, AL, AR, S, B, ƆLL)
         ωk_l = nth(iterated(x->C工map(x, AL, AL), ωk_l), i-1)
         ωk_r = ein"(abcij,db),edcij->aeij"(AR,S2,conj(AR))
         ωk_r = nth(iterated(x->工Ɔmap(x, AR, AR), ωk_r), W-i)
-        ωk += ein"((adij,abcij),dbeij),ceij->"(ωk_l,AC,B,ωk_r) * coef[i-1]
+        ωk += ein"((adij,abcij),dbeij),ceij->"(ωk_l,AC,conj(B),ωk_r) * coef[i-1]
     end
     ωk_l = ein"(abcij,db),adeij->ceij"(AL,S1,conj(AL))
     ωk_l = nth(iterated(x->C工map(x, AL, AL), ωk_l), W-1)
@@ -587,6 +587,7 @@ function mag2(model, k;
               if4site = true
               )
 
+    # Todo: this is not correct because ij is the whole site index, not the nearest neighbor index
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
     D2 = size(Mo, 2)
 
@@ -621,12 +622,12 @@ function mag2(model, k;
 
     if if4site             
         S_onsite = [Sij(S_4s[i]) for i in 1:3]
-        S_v1     = [Sij2(S_4v1s[i]) for i in 1:3] 
-        S_v2     = [Sij2(S_4v2s[i]) for i in 1:3] 
-        S_h1     = [SijW(S_4h1s[i]) for i in 1:3]
-        S_h2     = [SijW(S_4h2s[i]) for i in 1:3]
+        # S_v1     = [Sij2(S_4v1s[i]) for i in 1:3] 
+        # S_v2     = [Sij2(S_4v2s[i]) for i in 1:3] 
+        # S_h1     = [SijW(S_4h1s[i]) for i in 1:3]
+        # S_h2     = [SijW(S_4h2s[i]) for i in 1:3]
 
-        mag2_tol = S_onsite + S_v1 + S_v2 + S_h1 + S_h2
+        mag2_tol = S_onsite 
         outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
         !isdir(outfolder) && mkpath(outfolder)
         logfile = open("$outfolder/m2.log", "w")
@@ -646,4 +647,74 @@ $(mag2_tol[3])
 
         return mag2_tol
     end
+end
+
+"""
+    SS_correlation(model, k;
+                   Nj = 1, χ, 
+                   infolder = Defaults.infolder,
+                   atype = Defaults.atype,
+                   ifmerge = false, 
+                   if4site = true
+                   )
+
+    SS = <S₀⋅Sᵣ>
+"""
+function SS_correlation(model, k, r;
+                        Nj = 1, χ, 
+                        infolder = Defaults.infolder,
+                        atype = Defaults.atype,
+                        ifmerge = false, 
+                        if4site = true
+                        )
+    
+    Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
+    D2 = size(Mo, 2)
+
+    groundstate_folder = joinpath(infolder, "$model", "groundstate")
+    AL, C, AR = init_canonical_mps(;infolder = groundstate_folder, 
+                                    atype = atype,  
+                                    Nj = Nj,      
+                                    D = D2, 
+                                    χ = χ)
+
+    if ifmerge
+        AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        C = reshape(C[:,:,1,2], (χ, χ, 1, 1))
+    end
+
+    kx, ky = k
+    AC = ALCtoAC(AL, C)
+    W, S = model.W, model.S
+    Id = I(Int(2*S + 1))
+    Sα = const_Sx(S), const_Sy(S), const_Sz(S)
+
+
+    SS = zeros(Float64, r)
+    # SS[1] on the same column
+    # S_4s = exp(1.0im * kx) * contract4([Sα[1],Sα[1],Id,Id])
+    # SS[1] = real(Array(ein"abcij,db,adcij ->"(AC,atype(S_4s),conj(AC)))[])
+
+    # S12 = atype.([contract4([Sα[1],Id,Id,Id]), 
+    #               exp(1.0im * kx) * contract4([Id,Sα[1],Id,Id])])
+    # SS_l12 = ein"(abcij,db),adeij->ceij"(AL,S12[1],conj(AL))
+    # SS_l12 = collect(Iterators.take(iterated(x->C工map(x, AL, AL), SS_l12), floor(Int,r/2) * W))
+    
+    # for i in 2:r
+    #     S2 = i%2==0 ? S12[1] : S12[2]
+    #     SS[i] = real(Array(ein"((aeij,abcij),db),edcij->"(SS_l12[floor(Int,i/2) * W],AC,S2,conj(AC)))[])
+    # end
+
+    # SS[1] on the different column
+    S12 = atype.([contract4([Sα[1],Id,Id,Id]), 
+                  exp(1.0im * kx) * contract4([Id,Sα[1],Id,Id])])
+    SS_l12 = ein"(abcij,db),adeij->ceij"(AL,S12[2],conj(AL))
+    SS_l12 = collect(Iterators.take(iterated(x->C工map(x, AL, AL), SS_l12), floor(Int,(r+1)/2) * W))
+    
+    for i in 1:r
+        S2 = i%2==0 ? S12[2] : S12[1]
+        SS[i] = real(Array(ein"((aeij,abcij),db),edcij->"(SS_l12[floor(Int,(i+1)/2) * W],AC,S2,conj(AC)))[])
+    end
+    return SS
 end
