@@ -222,7 +222,7 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
         HB = ein"abcij,abdij->dcij"(HB,conj(VL))
         return HB
     end
-    Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; krylovdim = max(30, round(Int, 2*n)), ishermitian = true, maxiter = 100)
+    Δ, Y, info = eigsolve(x -> f(x), X, n, :SR; krylovdim = max(30, round(Int, n+10)), ishermitian = true, maxiter = 100)
     info.converged != 1 && @warn("eigsolve doesn't converged")
     # if4site && (Δ /= 4)
     save_canonical_excitaion(joinpath(outfolder, "$model"), W, Nj, size(AL,2), χ, k, Δ, VL, Y)
