@@ -1,6 +1,6 @@
 export load_canonical_excitaion
 export energy_gs_canonical_MPO
-export spectral_weight, spectral_weight_dimer, correlation_length, spin_config, SS_correlation
+export spectral_weight, spectral_weight_dimer, correlation_length, spin_config, SS_correlation, DD_correlation
 
 function load_canonical_excitaion(infolder, model, Nj, D, χ, k)
     kx, ky = k
@@ -715,4 +715,58 @@ function SS_correlation(model, k, r;
         SS[i] = real(Array(ein"((aeij,abcij),db),edcij->"(SS_l12[floor(Int,(i+1)/2) * W],AC,S2,conj(AC)))[])
     end
     return SS
+end
+
+"""
+    DD_correlation(model, k;
+                   Nj = 1, χ, 
+                   infolder = Defaults.infolder,
+                   atype = Defaults.atype,
+                   ifmerge = false, 
+                   if4site = true
+                   )
+
+    DD = <D₀⋅Dᵣ>-<D₀>⋅<Dᵣ>
+"""
+function DD_correlation(model, k, r;
+                        Nj = 1, χ, 
+                        infolder = Defaults.infolder,
+                        atype = Defaults.atype,
+                        ifmerge = false, 
+                        if4site = true
+                        )
+    
+    Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
+    D2 = size(Mo, 2)
+
+    groundstate_folder = joinpath(infolder, "$model", "groundstate")
+    AL, C, AR = init_canonical_mps(;infolder = groundstate_folder, 
+                                    atype = atype,  
+                                    Nj = Nj,      
+                                    D = D2, 
+                                    χ = χ)
+
+    if ifmerge
+        AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        C = reshape(C[:,:,1,2], (χ, χ, 1, 1))
+    end
+
+    kx, ky = k
+    AC = ALCtoAC(AL, C)
+    W, S = model.W, model.S
+    Id = I(Int(2*S + 1))
+    Sα = const_Sx(S), const_Sy(S), const_Sz(S)
+
+    DD = zeros(Float64, r)
+    D12 = atype(contract4([Sα[1],Sα[1],Id,Id]))
+    DD12 = real(Array(ein"abcij,db,adcij ->"(AC,D12,conj(AC))))[]^2
+
+    DD_l12 = ein"(abcij,db),adeij->ceij"(AL,D12,conj(AL))
+    DD_l12 = collect(Iterators.take(iterated(x->C工map(x, AL, AL), DD_l12), floor(Int,r) * W))
+    
+    for i in 1:r
+        DD[i] = real(Array(ein"((aeij,abcij),db),edcij->"(DD_l12[floor(Int,i) * W],AC,D12,conj(AC)))[])
+    end
+    return DD.-DD12
 end
