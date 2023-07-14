@@ -288,6 +288,7 @@ function spectral_weight(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerg
     VL = atype(VL)
     norm(ein"abcij,abdij->cdij"(VL, conj(AL))) < 1e-10 || error("VL and AL are not orthogonal")
     X  = atype.(X)
+    m = min(m, length(X))
     ωk = zeros(Float64, m, 3)
     for i in 1:m
         B = ein"abcij,cdij->abdij"(VL, X[i])
@@ -380,6 +381,7 @@ function spectral_weight_dimer(model, k, m; Nj, χ, infolder, outfolder, atype, 
     VL = atype(VL)
     norm(ein"abcij,abdij->cdij"(VL, conj(AL))) < 1e-10 || error("VL and AL are not orthogonal")
     X  = atype.(X)
+    m = min(m, length(X))
     ωk = zeros(Float64, m, 3)
     for i in 1:m
         B = ein"abcij,cdij->abdij"(VL, X[i])
