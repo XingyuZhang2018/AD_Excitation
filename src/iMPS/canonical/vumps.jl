@@ -54,17 +54,24 @@ function find_groundstate(model::HamiltonianModel,
                           outfolder::String = Defaults.outfolder,
                           verbose::Bool = Defaults.verbose,
                           ifADinit = false,
+                          if2site = false,
                           if4site = false
                           )
 
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
-    D = size(Mo,2)
-    M = atype(zeros(ComplexF64, (size(Mo)...,Ni,Nj)))
-    for j in 1:Nj, i in 1:Ni
-        M[:,:,:,:,i,j] = Mo
+    D1 = size(Mo,1)
+    D2 = size(Mo,2)
+    if if2site
+        D2 = D2^2
+        M = reshape(ein"abcg,cdef->abdegf"(Mo,Mo), (D1, D2, D1, D2, 1, 1))
+    else
+        M = atype(zeros(ComplexF64, (size(Mo)...,1,Nj)))
+        for j in 1:Nj
+            M[:,:,:,:,1,j] = Mo
+        end
     end
 
-    AL, C, AR = init_canonical_mps(;Ni = Ni, Nj = Nj, D = D, χ = χ, targχ = targχ,
+    AL, C, AR = init_canonical_mps(;Ni = Ni, Nj = Nj, D = D2, χ = χ, targχ = targχ,
                                     atype = atype,
                                     infolder = joinpath(infolder, "$model", "groundstate"),
                                     ifADinit = ifADinit,
@@ -73,8 +80,8 @@ function find_groundstate(model::HamiltonianModel,
 
     
     outfolder = joinpath(outfolder, "$model", "groundstate")
-    out_chkp_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).jld2")
-    out_log_file = joinpath(outfolder,"vumps_mps_$(Ni)x$(Nj)_D$(D)_χ$(targχ).log")
+    out_chkp_file = joinpath(outfolder,"canonical_mps_$(Ni)x$(Nj)_D$(D2)_χ$(targχ).jld2")
+    out_log_file = joinpath(outfolder,"vumps_mps_$(Ni)x$(Nj)_D$(D2)_χ$(targχ).log")
     
     err = Inf
     i = 0
@@ -87,6 +94,7 @@ function find_groundstate(model::HamiltonianModel,
         λAC, AC = ACenv(AC, E, M, Ǝ)
          λC,  C =  Cenv( C, E,    Ǝ)
         energy = real(sum(λAC - λC)/Nj)
+        if2site && (energy /= 2)
         if4site && (energy /= 4)
         AL, AR, errL, errR = ACCtoALAR(AC, C)
         err = errL + errR
