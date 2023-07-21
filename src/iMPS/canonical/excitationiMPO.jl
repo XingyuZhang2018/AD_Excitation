@@ -158,14 +158,15 @@ function H_canonical_eff(W, k, AL, AR, Bu, M, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR)
     return HB
 end
 
-function canonical_exci_env(model, Nj, χ; infolder, atype, ifmerge, if4site)
+function canonical_exci_env(model, Nj, χ; infolder, atype, ifmerge, if2site, if4site)
     infolder = joinpath( infolder, "$model")
 
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
     D1 = size(Mo, 1)
     D2 = size(Mo, 2)
-    if ifmerge
-        M = reshape(ein"abcg,cdef->abdegf"(Mo,Mo), (D1, D2^2, D1, D2^2, 1, 1))
+    if if2site || ifmerge
+        D2 = D2^2
+        M = reshape(ein"abcg,cdef->abdegf"(Mo,Mo), (D1, D2, D1, D2, 1, 1))
     else
         M = atype(zeros(ComplexF64, (size(Mo)...,1,Nj)))
         for j in 1:Nj
@@ -178,8 +179,8 @@ function canonical_exci_env(model, Nj, χ; infolder, atype, ifmerge, if4site)
                                     D = D2, 
                                     χ = χ)
     if ifmerge
-        AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
-        AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2, χ, 1, 1))
+        AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2, χ, 1, 1))
         C = reshape(C[:,:,1,2], (χ, χ, 1, 1))  
     end
 
@@ -203,17 +204,18 @@ function excitation_spectrum_canonical_MPO(model, k, n::Int = 1;
                                            χ::Int = 8,
                                            atype = Array,
                                            ifmerge::Bool = false,
+                                           if2site::Bool = false,
                                            if4site::Bool = false,
                                            infolder = "../data/", outfolder = "../data"
                                            )
 
     M, AL, C, AR, AC, ELL, ƎRR, ERL, ƎRL, ELR, ƎLR, VL = canonical_exci_env(model, Nj, χ;  
-            infolder = infolder, atype = atype, ifmerge = ifmerge, if4site = if4site)
+            infolder = infolder, atype = atype, ifmerge = ifmerge, if2site = if2site, if4site = if4site)
 
     X = atype(rand(ComplexF64, χ*(size(AL, 2)-1), χ, size(AL, 4), size(AL, 5)))
     E0 = ein"(((adfij,abcij),dgebij),cehij),fghij -> ij"(ELL,AC,M,ƎRR,conj(AC))
     W = model.W
-    ifmerge && (W = Int(W/2))
+    (if2site || ifmerge) && (W = Int(W/2))
     # @show E0
     function f(X)
         Bu = ein"abcij,cdij->abdij"(VL, X)
