@@ -319,7 +319,7 @@ function SS_4site(model, k)
     Sα = const_Sx(S), const_Sy(S), const_Sz(S)
     d = Int(2*S + 1)
     Id = I(d)
-    [(exp(1.0im * kx) * contract4([S,S,Id,Id]) + exp(1.0im * ky) * contract4([S,Id,S,Id]) + exp(2.0im * kx + 1.0im * ky) *contract4([Id,S,Id,S]) + exp(1.0im * kx + 2.0im * ky) * contract4([Id,Id,S,S]))/4 for S in Sα]
+    [(contract4([S,S,Id,Id]) + contract4([S,Id,S,Id]) + exp(1.0im * kx) *contract4([Id,S,Id,S]) + exp(1.0im * ky) * contract4([Id,Id,S,S])) for S in Sα]
 end
 
 function SS_4site_v(model, k)
@@ -338,8 +338,8 @@ function SS_4site_h(model, k)
     Sα = const_Sx(S), const_Sy(S), const_Sz(S)
     d = Int(2*S + 1)
     Id = I(d)
-    [[exp(1.0im * kx) * contract4([Id,S,Id,Id])/2, exp(2.0im * kx) * contract4([S,Id,Id,Id])/2] for S in Sα], 
-    [[exp(1.0im * kx + 1.0im * ky) * contract4([Id,Id,Id,S])/2, exp(2.0im * kx + 1.0im * ky) * contract4([Id,Id,S,Id])/2] for S in Sα]
+    [[exp(1.0im * kx) * contract4([Id,S,Id,Id])/2, contract4([S,Id,Id,Id])/2] for S in Sα], 
+    [[exp(1.0im * kx + 1.0im * ky) * contract4([Id,Id,Id,S])/2, contract4([Id,Id,S,Id])/2] for S in Sα]
 end
 
 """
@@ -385,9 +385,9 @@ function spectral_weight_dimer(model, k, m; Nj, χ, infolder, outfolder, atype, 
     ωk = zeros(Float64, m, 3)
     for i in 1:m
         B = ein"abcij,cdij->abdij"(VL, X[i])
-        ωk[i, :] = [ω(W, k_config, AC, AL, AR, S, B, ƆLL) for S in S_4s] +
-                   ([ω2(W, k_config, AC, AL, AR, atype.(S), B, ƆLL) for S in S_4v1s] + 
-                   [ω2(W, k_config, AC, AL, AR, atype.(S), B, ƆLL) for S in S_4v2s])
+        ωk[i, :] = [ω(W, k_config, AC, AL, AR, S, B, ƆLL) for S in S_4s]
+                #    ([ω2(W, k_config, AC, AL, AR, atype.(S), B, ƆLL) for S in S_4v1s] + 
+                #    [ω2(W, k_config, AC, AL, AR, atype.(S), B, ƆLL) for S in S_4v2s])
                 #    [ω3(W, k_config, AC, AL, AR, atype.(S), B, ƆLL) for S in S_4h1s] + 
                 #    [ω3(W, k_config, AC, AL, AR, atype.(S), B, ƆLL) for S in S_4h2s]  ## discard the horizontal part because it's too small for small 2D correlation length
     end
