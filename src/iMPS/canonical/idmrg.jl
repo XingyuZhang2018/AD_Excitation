@@ -21,6 +21,7 @@ function find_groundstate(model::HamiltonianModel,
                           outfolder::String = Defaults.outfolder,
                           verbose::Bool = Defaults.verbose,
                           ifADinit = false,
+                          if2site = false,
                           if4site = false
                           )
 
@@ -29,9 +30,14 @@ function find_groundstate(model::HamiltonianModel,
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
     D1 = size(Mo,1)
     D2 = size(Mo,2)
-    M = atype(zeros(ComplexF64, (size(Mo)...,Ni,Nj)))
-    for j in 1:Nj, i in 1:Ni
-        M[:,:,:,:,i,j] = Mo
+    if if2site
+        D2 = D2^2
+        M = reshape(ein"abcg,cdef->abdegf"(Mo,Mo), (D1, D2, D1, D2, 1, 1))
+    else
+        M = atype(zeros(ComplexF64, (size(Mo)...,1,Nj)))
+        for j in 1:Nj
+            M[:,:,:,:,1,j] = Mo
+        end
     end
 
     AL, C, AR = init_canonical_mps(;Ni = Ni, Nj = Nj, D = D2, χ = χ, targχ = targχ,
@@ -79,6 +85,7 @@ function find_groundstate(model::HamiltonianModel,
         e1 = Array(ein"((abij,acdij),bceij),deij->"(C,E,Ǝ,conj(C)))[]
         energy = real(e2 - e1)
         if4site && (energy /= 4)
+        if2site && (energy /= 2)
         message = "$t idmrg@$i err = $err energy = $(energy)\n "
         verbose && (i % alg.show_every) == 0 && print(message)
         logfile = open(out_log_file, "a")

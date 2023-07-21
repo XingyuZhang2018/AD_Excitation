@@ -1,6 +1,6 @@
 export load_canonical_excitaion
 export energy_gs_canonical_MPO
-export spectral_weight, spectral_weight_dimer, correlation_length, spin_config, SS_correlation, DD_correlation
+export spectral_weight, spectral_weight_dimer, correlation_length, spin_config, SS_correlation, DD_correlation, dimer_order
 
 function load_canonical_excitaion(infolder, model, Nj, D, χ, k)
     kx, ky = k
@@ -771,4 +771,65 @@ function DD_correlation(model, k, r;
         DD[i] = real(Array(ein"((aeij,abcij),db),edcij->"(DD_l12[floor(Int,i) * W],AC,D12,conj(AC)))[])
     end
     return DD.-DD12
+end
+
+"""
+    dimer_order(model, k;
+                   Nj = 1, χ, 
+                   infolder = Defaults.infolder,
+                   atype = Defaults.atype,
+                   ifmerge = false, 
+                   if4site = true
+                   )
+
+"""
+function dimer_order(model;
+                     Nj = 1, χ, 
+                     infolder = Defaults.infolder,
+                     atype = Defaults.atype,
+                     ifmerge = false, 
+                     if4site = true
+                     )
+    
+    Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
+    D2 = size(Mo, 2)
+
+    groundstate_folder = joinpath(infolder, "$model", "groundstate")
+    AL, C, AR = init_canonical_mps(;infolder = groundstate_folder, 
+                                    atype = atype,  
+                                    Nj = Nj,      
+                                    D = D2, 
+                                    χ = χ)
+
+    if ifmerge
+        AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        C = reshape(C[:,:,1,2], (χ, χ, 1, 1))
+    end
+
+    AC = ALCtoAC(AL, C)
+    W, S = model.W, model.S
+    Id = I(Int(2*S + 1))
+    Sα = const_Sx(S), const_Sy(S), const_Sz(S)
+
+    S12 = atype(sum([contract4([S,S,Id,Id]) for S in Sα]))
+    S13 = atype(sum([contract4([S,Id,S,Id]) for S in Sα]))
+    S1 = [atype(contract4([S,Id,Id,Id])) for S in Sα]
+    S2 = [atype(contract4([Id,S,Id,Id])) for S in Sα]
+    S3 = [atype(contract4([Id,Id,S,Id])) for S in Sα]
+    # S24 = atype(sum([contract4([Id,S,Id,S]) for S in Sα]))
+    # S34 = atype(sum([contract4([Id,Id,S,S]) for S in Sα]))
+
+
+    SS12 = real(Array(ein"abcij,db,adcij ->"(AC,S12,conj(AC))))[]
+    SS13 = real(Array(ein"abcij,db,adcij ->"(AC,S13,conj(AC))))[]
+
+    SS_l21 = [ein"(abcij,db),adeij->ceij"(AL,S,conj(AL)) for S in S2]
+    SS_l21 = [nth(iterated(x->C工map(x, AL, AL), SS), W) for SS in SS_l21]
+    SS21 = sum([real(Array(ein"((aeij,abcij),db),edcij->"(SS,AC,S,conj(AC)))[]) for (SS,S) in zip(SS_l21, S1)])
+
+    SS_l31 = [ein"(abcij,db),adeij->ceij"(AL,S,conj(AL)) for S in S3]
+    SS31 = sum([real(Array(ein"((aeij,abcij),db),edcij->"(SS,AC,S,conj(AC)))[]) for (SS,S) in zip(SS_l31, S1)])
+    @show SS12, SS13, SS21, SS31
+    return nothing
 end
