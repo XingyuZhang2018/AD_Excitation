@@ -53,6 +53,10 @@ function parse_commandline()
             help = "verbose"
             arg_type = Bool
             default = true
+        "--if2site"
+            help = "if2site"
+            arg_type = Bool
+            default = false
         "--if4site"
             help = "if4site"
             arg_type = Bool
@@ -77,6 +81,7 @@ function main()
     infolder = parsed_args["infolder"]
     outfolder = parsed_args["outfolder"]
     verbose = parsed_args["verbose"]
+    if2site = parsed_args["if2site"]
     if4site = parsed_args["if4site"]
 
     Random.seed!(seed)
@@ -87,6 +92,7 @@ function main()
                      infolder = infolder,
                      outfolder = outfolder,
                      verbose = verbose,
+                     if2site = if2site,
                      if4site = if4site
                      );
 end

@@ -6,7 +6,8 @@
 module load julia-1.7.1
 project_dir=~/research/AD_Excitation
 julia --project=${project_dir} ${project_dir}/project/excitation.jl \
-      --if4site true \
+      --if2site false \
+      --if4site false \
       --model "J1J2(6, 0.5)" \
       --chi 256 \
       --kx 0 \
