@@ -798,7 +798,18 @@ end
                    ifmerge = false, 
                    if4site = true
                    )
-
+site label
+```
+    │  │  │  │ 
+   ─3──4──3──4─
+    │  │  │  │     
+   ─1──2──1──2─
+    │  │  │  │ 
+   ─3──4──3──4─
+    │  │  │  │     
+   ─1──2──1──2─
+    │  │  │  │
+```
 """
 function dimer_order(model;
                      Nj = 1, χ, 
@@ -848,5 +859,18 @@ function dimer_order(model;
     SS_l31 = [ein"(abcij,db),adeij->ceij"(AL,S,conj(AL)) for S in S3]
     SS31 = sum([real(Array(ein"((aeij,abcij),db),edcij->"(SS,AC,S,conj(AC)))[]) for (SS,S) in zip(SS_l31, S1)])
     @show SS12, SS13, SS21, SS31
-    return nothing
+    outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
+    !isdir(outfolder) && mkpath(outfolder)
+    logfile = open("$outfolder/dimer_order.log", "w")
+    message = 
+"
+SS12: $SS12
+SS13: $SS13
+SS21: $SS21
+SS31: $SS31
+"
+    write(logfile, message)
+    close(logfile)
+    println("save dimer_order to $logfile")
+    println(message)
 end
