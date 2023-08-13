@@ -529,6 +529,8 @@ function spin_config(model;
     Sx, Sy, Sz = const_Sx(S), const_Sy(S), const_Sz(S)
 
     AC = ALCtoAC(AL, C)
+    outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
+    !isdir(outfolder) && mkpath(outfolder)
     if if4site             
         ISx, ISy, ISz = atype.(I_S(Sx)), atype.(I_S(Sy)), atype.(I_S(Sz))
 
@@ -536,8 +538,7 @@ function spin_config(model;
         Sy_s = [real(Array(ein"abcij,db,adcij ->"(AC,ISy[i],conj(AC))))[] for i in 1:4]
         Sz_s = [real(Array(ein"abcij,db,adcij ->"(AC,ISz[i],conj(AC))))[] for i in 1:4]
 
-        outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
-        !isdir(outfolder) && mkpath(outfolder)
+
         logfile = open("$outfolder/spin_config.log", "w")
         message = 
 "
@@ -551,11 +552,27 @@ Sz:
 $(Sz_s[3]) $(Sz_s[4])
 $(Sz_s[1]) $(Sz_s[2])
 "
-        write(logfile, message)
-        close(logfile)
-        println("save spin_config to $logfile")
-        println(message)
+    else
+        Sx_s = real(Array(ein"abcij,db,adcij ->ij"(AC,atype(Sx),conj(AC))))
+        Sy_s = real(Array(ein"abcij,db,adcij ->ij"(AC,atype(Sy),conj(AC))))
+        Sz_s = real(Array(ein"abcij,db,adcij ->ij"(AC,atype(Sz),conj(AC))))
+
+        logfile = open("$outfolder/spin_config.log", "w")
+        message =
+"
+Sx:
+$(Sx_s)
+Sy:
+$(Sy_s)
+Sz:
+$(Sz_s)
+"
     end
+            
+    write(logfile, message)
+    close(logfile)
+    println("save spin_config to $logfile")
+    println(message)
 end
 
 """
