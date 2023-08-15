@@ -842,31 +842,48 @@ function dimer_order(model;
 
     S21 = atype(sum([contract4([S,S,Id,Id]) for S in Sα]))
     S31 = atype(sum([contract4([S,Id,S,Id]) for S in Sα]))
+    S43 = atype(sum([contract4([Id,Id,S,S]) for S in Sα]))
+    S42 = atype(sum([contract4([Id,S,Id,S]) for S in Sα]))
     S1 = [atype(contract4([S,Id,Id,Id])) for S in Sα]
     S2 = [atype(contract4([Id,S,Id,Id])) for S in Sα]
     S3 = [atype(contract4([Id,Id,S,Id])) for S in Sα]
+    S4 = [atype(contract4([Id,Id,Id,S])) for S in Sα]
     # S24 = atype(sum([contract4([Id,S,Id,S]) for S in Sα]))
     # S34 = atype(sum([contract4([Id,Id,S,S]) for S in Sα]))
 
 
     SS21 = real(Array(ein"abcij,db,adcij ->"(AC,S21,conj(AC))))[]
     SS31 = real(Array(ein"abcij,db,adcij ->"(AC,S31,conj(AC))))[]
+    SS43 = real(Array(ein"abcij,db,adcij ->"(AC,S43,conj(AC))))[]
+    SS42 = real(Array(ein"abcij,db,adcij ->"(AC,S42,conj(AC))))[]
 
     SS_l12 = [ein"(abcij,db),adeij->ceij"(AL,S,conj(AL)) for S in S1]
     SS_l12 = [nth(iterated(x->C工map(x, AL, AL), SS), W) for SS in SS_l12]
     SS12 = sum([real(Array(ein"((aeij,abcij),db),edcij->"(SS,AC,S,conj(AC)))[]) for (SS,S) in zip(SS_l12, S2)])
 
+    SS_l34 = [ein"(abcij,db),adeij->ceij"(AL,S,conj(AL)) for S in S3]
+    SS_l34 = [nth(iterated(x->C工map(x, AL, AL), SS), W) for SS in SS_l34]
+    SS34 = sum([real(Array(ein"((aeij,abcij),db),edcij->"(SS,AC,S,conj(AC)))[]) for (SS,S) in zip(SS_l34, S4)])
+
     SS_l13 = [ein"(abcij,db),adeij->ceij"(AL,S,conj(AL)) for S in S1]
     SS13 = sum([real(Array(ein"((aeij,abcij),db),edcij->"(SS,AC,S,conj(AC)))[]) for (SS,S) in zip(SS_l13, S3)])
+
+    SS_l24 = [ein"(abcij,db),adeij->ceij"(AL,S,conj(AL)) for S in S2]
+    SS24 = sum([real(Array(ein"((aeij,abcij),db),edcij->"(SS,AC,S,conj(AC)))[]) for (SS,S) in zip(SS_l24, S4)])
+
     outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
     !isdir(outfolder) && mkpath(outfolder)
     logfile = open("$outfolder/dimer_order.log", "w")
     message = 
 "
 SS21: $SS21
-SS31: $SS31
 SS12: $SS12
+SS43: $SS43
+SS34: $SS34
+SS31: $SS31
 SS13: $SS13
+SS42: $SS42
+SS24: $SS24
 "
     write(logfile, message)
     close(logfile)
