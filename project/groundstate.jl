@@ -35,7 +35,10 @@ function parse_commandline()
             arg_type = Int
             default = 1
         "--chi"
-            help = "vumps virtual bond dimension"
+            help = "virtual bond dimension"
+            arg_type = Int
+        "--targchi"
+            help = "target virtual bond dimension"
             arg_type = Int
         "--atype"
             help = "atype"
@@ -78,6 +81,7 @@ function main()
     Ni = parsed_args["Ni"]
     Nj = parsed_args["Nj"]
     χ = parsed_args["chi"]
+    targχ = parsed_args["targchi"]
     infolder = parsed_args["infolder"]
     outfolder = parsed_args["outfolder"]
     verbose = parsed_args["verbose"]
@@ -87,7 +91,7 @@ function main()
     Random.seed!(seed)
     find_groundstate(model, alg(maxiter = maxiter, tol = tol);
                      Ni = Ni, Nj = Nj,
-                     χ = χ,
+                     χ = χ, targχ = targχ,
                      atype = atype,
                      infolder = infolder,
                      outfolder = outfolder,
