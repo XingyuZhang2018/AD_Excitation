@@ -62,14 +62,14 @@ function find_groundstate(model::HamiltonianModel,
         i += 1
         
         λAC, AC = ACenv(AC, E, M, Ǝ)
-        AL, _ = qrpos(reshape(AC, χ*D2, χ))
-        AL = reshape(AL, χ,D2,χ,1,1)
+        AL, _ = qrpos(reshape(AC, targχ*D2, targχ))
+        AL = reshape(AL, targχ,D2,targχ,1,1)
         E[:,:,:,1,:] = FLmap(AL[:,:,:,1,:], conj(AL[:,:,:,1,:]), M[:,:,:,:,1,:], E[:,:,:,1,:])
 
         λAC, AC = ACenv(AC, E, M, Ǝ)
-        Cp, AR = lqpos(reshape(AC, χ,χ*D2))
-        Cp = reshape(Cp,χ,χ,1,1)
-        AR = reshape(AR, χ,D2,χ,1,1)
+        Cp, AR = lqpos(reshape(AC, targχ,targχ*D2))
+        Cp = reshape(Cp,targχ,targχ,1,1)
+        AR = reshape(AR, targχ,D2,targχ,1,1)
         Ǝ[:,:,:,1,:] = FRmap(AR[:,:,:,1,:], conj(AR[:,:,:,1,:]), M[:,:,:,:,1,:], Ǝ[:,:,:,1,:])
 
         err = norm(C-Cp)
