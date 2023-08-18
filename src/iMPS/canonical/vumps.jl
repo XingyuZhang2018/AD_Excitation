@@ -99,7 +99,7 @@ function find_groundstate(model::HamiltonianModel,
         if4site && (energy /= 4)
         AL, AR, errL, errR = ACCtoALAR(AC, C)
         err = errL + errR
-        i % save_period == 0 && save_save(out_chkp_file, "ALCAR", map(Array, (AL, C, AR)))
+        i % save_period == 0 && save(out_chkp_file, "ALCAR", map(Array, (AL, C, AR)))
         t = round(time() - t0, digits = 2)
         message = "$t vumps@$i err = $err energy = $energy \n"
         verbose && (i % alg.show_every) == 0 && print(message)
@@ -108,6 +108,7 @@ function find_groundstate(model::HamiltonianModel,
         close(logfile)
     end
 
+    save(out_chkp_file, "ALCAR", map(Array, (AL, C, AR)))
     verbose && println("vumps done@$i err = $err energy = $energy")
     return energy
 end

@@ -94,6 +94,7 @@ function find_groundstate(model::HamiltonianModel,
         close(logfile)
     end
 
+    save(out_chkp_file, "ALCAR", map(Array, (AL, C, AR)))
     verbose && println("idmrg done@$i err = $err energy = $(energy)")
     return energy
 end
