@@ -456,7 +456,7 @@ function S2_total(model, k, m; Nj, χ, infolder, outfolder, atype, ifmerge, if4s
     return S2_t
 end
 
-function correlation_length(model; Nj, χ, infolder, outfolder, atype, ifmerge, if4site)
+function correlation_length(model; Nj, χ, n, infolder, outfolder, atype, ifmerge, if4site)
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
     D2 = size(Mo, 2)
 
@@ -477,6 +477,7 @@ function correlation_length(model; Nj, χ, infolder, outfolder, atype, ifmerge, 
     !isdir(outfolder) && mkpath(outfolder)
     env_c(AL, conj(AL); 
           ifcor_len=true, 
+          n=n,
           outfolder=outfolder)
     # env_ɔ(AR, conj(AR);
     #       ifcor_len=true, 

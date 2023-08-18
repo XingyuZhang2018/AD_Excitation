@@ -57,19 +57,17 @@ function cint(A)
     return c
 end
 
-function env_c(Au, Ad, c = cint(Au); ifcor_len=false, outfolder=nothing, kwargs...) 
+function env_c(Au, Ad, c = cint(Au); ifcor_len=false, n=1, outfolder=nothing, kwargs...) 
     Ni,Nj = size(Au)[[4,5]]
     λc = zeros(eltype(c),Ni)
-    ifcor_len ? (n=2) : (n=1)
     for i in 1:Ni
         λcs, cs, info = eigsolve(X->cmap(X, Au[:,:,:,i,:], Ad[:,:,:,i,:]), c[:,:,i,:], n, :LM; maxiter=100, ishermitian = false)
         info.converged == 0 && @warn "env_c not converged"
         if ifcor_len 
-            logfile = open("$outfolder/correlation_length_c.log", "w")
-            ξ = -1/log(abs(λcs[2]))
-            write(logfile, "$(ξ)")
+            logfile = open("$outfolder/correlation_length_c_eigenvalue.log", "w")
+            write(logfile, "$(λcs)")
             close(logfile)
-            println("save correlation length to $logfile")
+            println("save correlation length eigenvalue to $logfile")
         end
         λc[i], c[:,:,i,:] = selectpos(λcs, cs, Nj)
     end
