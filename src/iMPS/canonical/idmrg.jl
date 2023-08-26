@@ -76,7 +76,7 @@ function find_groundstate(model::HamiltonianModel,
         err = norm(C-Cp)
         C = Cp
 
-        i % save_period == 0 && save(out_chkp_file, "ALCAR", map(Array, (AL, C, AR)))
+        (i==1 || i % save_period == 0) && save(out_chkp_file, "ALCAR", map(Array, (AL, C, AR)))
         t = round(time() - t0, digits = 2)
 
         AC = ALCtoAC(AL, C)

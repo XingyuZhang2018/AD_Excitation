@@ -11,16 +11,16 @@ using CUDA
 #                  ifADinit = false,
 #                  if4site = true
 #                  );
-find_groundstate(J1J2(8,0.5), IDMRG1(maxiter=1000);
+find_groundstate(J1xJ1yJ2(0.5,4,1.0,1.0,0.5), VUMPS(maxiter=1000,show_every=1);
                  Ni = 1, Nj = 1,
-                 χ = 64,
-                 atype = CuArray,
+                 χ = 16,
+                 atype = Array,
                  infolder = "../data/",
                  outfolder = "../data/",
                  verbose = true,
                  ifADinit = false,
-                 if2site = true,
-                 if4site = false
+                 if2site = false,
+                 if4site = true
                  );
 # find_groundstate(J1J2(7, 0.3), ADMPS(ifcheckpoint=true);
 #                     Ni = 1, Nj = 1,

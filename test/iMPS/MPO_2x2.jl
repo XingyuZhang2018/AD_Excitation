@@ -7,4 +7,12 @@ using Test
     model = Heisenberg(0.5,W,1.0,-1.0,-1.0)
     M = MPO_2x2(model)
     @test size(M) == (2+6W,16,2+6W,16)
+
+    for J1 in 0:0.3:1.5, J2 in 0:0.3:1.5
+        model1 = J1J2(0.5,W,J1,J2)
+        M1 = MPO_2x2(model1)
+        model2 = J1xJ1yJ2(0.5,W,J1,J1,J2)
+        M2 = MPO_2x2(model2)
+        @test M1 == M2
+    end
 end
