@@ -1,10 +1,10 @@
 using AD_Excitation
 using CUDA
 
-for W in 6:6, J2 in 0.4:0.01:0.7, χ in [512]
+for W in 5:5, J2 in 0.5:0.01:0.5, χ in [1024]
     @time dimer_order(J1J2(W, J2); 
                               χ = χ,
-                              infolder = "../data/",
+                              infolder = "./data/",
                               atype = CuArray,
                               ifmerge=false, 
                               if4site=true
