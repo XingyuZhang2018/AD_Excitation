@@ -3,7 +3,7 @@ module AD_Excitation
     using Parameters 
     using Zygote
 
-    export find_groundstate, VUMPS, ADMPS, IDMRG1
+    export find_groundstate, VUMPS, ADMPS, IDMRG1, IDMRG2
     export checkpoint
     #default settings
     module Defaults
