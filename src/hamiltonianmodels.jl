@@ -1,7 +1,7 @@
 using OMEinsum
 
 export Heisenberg, TFIsing, XXZ, J1J2, J1xJ1yJ2, Kitaev
-export hamiltonian, HamiltonianModel
+export hamiltonian, HamiltonianModel, ExFd
 
 function const_Sx(S::Real)
     dims = Int(2*S + 1)
@@ -40,6 +40,42 @@ function const_Sz(S::Real)
 end
 
 abstract type HamiltonianModel end
+
+"""
+    ExFd(model::HamiltonianModel, F::Real)
+
+return a struct representing the `model` with `F` as the external field.
+"""
+function ExFd(model::HamiltonianModel, F)
+    struct_name = string(typeof(model).name.name)*"F"
+
+    struct_definition = """
+        struct $(struct_name){T<:Real} <: HamiltonianModel
+            S::T
+            W::Int
+            $(join([string(field) * "::T" for field in fieldnames(typeof(model))[3:end]], "\n")) 
+            F::T 
+        end
+    """
+
+    eval(Meta.parse(struct_definition))
+    eval(Meta.parse("export $struct_name"))
+
+    MPO2x2_definition = """
+        function MPO_2x2(model::$struct_name)
+            M = MPO_2x2($model)
+            S = getfield(model, :S)
+            F = getfield(model, :F)
+            Sz = const_Sz(S)
+            ISz = sum(I_S(Sz))
+            M[end,:,1,:] .+= F * ISz
+            return M
+        end
+    """
+    eval(Meta.parse(MPO2x2_definition))
+
+    return eval(Meta.parse("$struct_name($(join([string(getfield(model, field)) for field in fieldnames(typeof(model))], ", ") * ", $F"))"))
+end
 
 """
     hamiltonian(model<:HamiltonianModel)
