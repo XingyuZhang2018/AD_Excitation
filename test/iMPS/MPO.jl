@@ -11,3 +11,11 @@ using TeneT:leftorth,rightorth,LRtoC,leftenv,rightenv
     H = hamiltonian(model)
     @test H_MPO ≈ H
 end
+
+@testset "1D J1J2 MPO" begin
+    model1 = J1J2(1, 1.0)
+    model2 = Heisenberg(0.5, 2)
+    M1 = MPO(model1)
+    M2 = MPO(model2)
+    @test M1 == M2
+end
