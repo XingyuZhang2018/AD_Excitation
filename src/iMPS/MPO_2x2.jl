@@ -206,3 +206,66 @@ function MPO_2x2(model::J1xJ1yJ2)
 end
 
 MPO_2x2(model::J1J2) = MPO_2x2(J1xJ1yJ2(model.S, model.W, model.J1, model.J1, model.J2))
+
+H_M2_on_site(S, k) = (d = size(S, 1); Id = I(d); (kx, ky) = k;
+                      mapreduce(contract4, +,
+                                [
+                                 [exp(1.0im * kx)*S, S, Id, Id], 
+                                 [exp(1.0im * ky)*S, Id, S, Id], 
+                                 [exp(2.0im * kx + 1.0im * ky)*Id,  S, Id,  S], 
+                                 [exp(1.0im * kx + 2.0im * ky)*Id, Id,  S,  S],
+                                 [exp(1.0im * kx + 1.0im * ky)*S, Id, Id,  S],
+                                 [exp(1.0im * kx + 1.0im * ky)*Id,  S,  S, Id],
+                                 [S*S, Id, Id, Id],
+                                 [Id, S*S, Id, Id],
+                                 [Id, Id, S*S, Id],
+                                 [Id, Id, Id, S*S]
+                                ]
+                               )
+                     )
+
+H_M2_St(S, k) = (d = size(S, 1); Id = I(d); (kx, ky) = k;
+                     mapreduce(contract4, +,
+                               [
+                                [S, Id, Id, Id],
+                                [exp(1.0im * kx) * Id, S, Id, Id],
+                                [exp(1.0im * ky) * Id, Id, S, Id],
+                                [exp(1.0im * kx + 1.0im * ky) *Id, Id, Id, S]
+                               ]
+                              )
+                )
+
+function MPO_2x2(model::M2)
+    # some constants
+    S, W, k = model.S, model.W, model.k
+    @assert W >= 2 "The width of the model must be at least 2."
+    Sx, Sy, Sz = const_Sx(S), const_Sy(S), const_Sz(S)
+    d = size(Sx, 1)
+    M = zeros(ComplexF64, 2+3W, d^4, 2+3W, d^4)
+
+    # precompute the 2x2 operators
+    I4 = I_4(d)
+    Sxt, Syt, Szt = H_M2_St(Sx, k), H_M2_St(Sy, k), H_M2_St(Sz, k)
+    M[2,   :,1,:] .= Sxt
+    M[2+W, :,1,:] .= Syt
+    M[2+2W,:,1,:] .= Szt
+
+    for i in 2:W, j in 0:2
+        M[i+1+j*W,:,i+j*W,:] .= I4
+    end
+
+    M[   1,:,   1,:] .= I4
+    M[2+3W,:,2+3W,:] .= I4
+
+    # on site
+    M[2+3W,:,1,:] .= H_M2_on_site(Sx,k) + H_M2_on_site(Sy,k) + H_M2_on_site(Sz,k)
+
+    # neighbor
+    for i in 2:W+1
+        M[2+3W,:,i+0*W,:] .= Sxt
+        M[2+3W,:,i+1*W,:] .= Syt
+        M[2+3W,:,i+2*W,:] .= Szt
+    end
+
+    return M
+end

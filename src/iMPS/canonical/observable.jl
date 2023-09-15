@@ -1,6 +1,6 @@
 export load_canonical_excitaion
 export energy_gs_canonical_MPO
-export spectral_weight, spectral_weight_dimer, correlation_length, spin_config, SS_correlation, DD_correlation, dimer_order
+export spectral_weight, spectral_weight_dimer, correlation_length, spin_config, SS_correlation, DD_correlation, dimer_order, mag2
 
 function load_canonical_excitaion(infolder, model, Nj, D, χ, k)
     kx, ky = k
@@ -597,7 +597,7 @@ site label
 ```
 ```
 """
-function mag2(model, k; 
+function mag2(model, k, L; 
               Nj = 1, χ, 
               infolder = Defaults.infolder,
               atype = Defaults.atype,
@@ -605,7 +605,6 @@ function mag2(model, k;
               if4site = true
               )
 
-    # Todo: this is not correct because ij is the whole site index, not the nearest neighbor index
     Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
     D2 = size(Mo, 2)
 
@@ -622,49 +621,29 @@ function mag2(model, k;
         C = reshape(C[:,:,1,2], (χ, χ, 1, 1))
     end
                   
-    S_4s = atype.(SS_4site(model, k))
-    S_4v1s, S_4v2s = SS_4site_v(model, k)
-    S_4h1s, S_4h2s = SS_4site_h(model, k)
-
-    AC = ALCtoAC(AL, C)
-    Sij(S) = real(Array(ein"abcij,db,adcij ->"(AC,S,conj(AC))))[]
-    function Sij2(S)
-        ωk_l = ein"(abcij,db),adeij->ceij"(AL,atype(S[1]),conj(AL))
-        real(Array(ein"((aeij,abcij),db),edcij->"(ωk_l,AC,atype(S[2]),conj(AC)))[])
-    end
-    function SijW(S)
-        ωk_l = ein"(abcij,db),adeij->ceij"(AL,atype(S[1]),conj(AL))
-        ωk_l = nth(iterated(x->C工map(x, AL, AL), ωk_l), model.W-1)
-        real(Array(ein"((aeij,abcij),db),edcij->"(ωk_l,AC,atype(S[2]),conj(AC)))[])
+    Mo = if4site ? atype(MPO_2x2(M2(model.S,L,k))) : atype(MPO(M2(model.S,L,k)))
+    M = atype(zeros(ComplexF64, (size(Mo)...,1,Nj)))
+    for j in 1:Nj
+        M[:,:,:,:,1,j] = Mo
     end
 
-    if if4site             
-        S_onsite = [Sij(S_4s[i]) for i in 1:3]
-        # S_v1     = [Sij2(S_4v1s[i]) for i in 1:3] 
-        # S_v2     = [Sij2(S_4v2s[i]) for i in 1:3] 
-        # S_h1     = [SijW(S_4h1s[i]) for i in 1:3]
-        # S_h2     = [SijW(S_4h2s[i]) for i in 1:3]
+    E, Ǝ = envir_MPO(AL, AR, M)
+    AC = ALCtoAC(AL,C)
 
-        mag2_tol = S_onsite 
-        outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
-        !isdir(outfolder) && mkpath(outfolder)
-        logfile = open("$outfolder/m2.log", "w")
-        message = 
-"
-Sx:
-$(mag2_tol[1])
-Sy:
-$(mag2_tol[2])
-Sz:
-$(mag2_tol[3])
-"
-        write(logfile, message)
-        close(logfile)
-        println("save mag2 to $logfile")
-        println(message)
+    田 = ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,AC,M,Ǝ,conj(AC))
+    日 = ein"((abij,acdij),bceij),deij->"(C,E,Ǝ,conj(C))
+    mag2_tol = real(Array(田-日)[]/L)
+    if4site && (mag2_tol /= 16)
+    outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
+    !isdir(outfolder) && mkpath(outfolder)
+    logfile = open("$outfolder/m2_L$L.log", "w")
+    message = "$(mag2_tol)"
+    write(logfile, message)
+    close(logfile)
+    println("save mag2 to $logfile")
+    println(message)
 
-        return mag2_tol
-    end
+    return mag2_tol
 end
 
 """

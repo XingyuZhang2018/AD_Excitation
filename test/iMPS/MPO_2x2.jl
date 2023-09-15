@@ -2,7 +2,7 @@ using AD_Excitation
 using OMEinsum
 using Test
 
-@testset "MPO_2x2" begin
+@testset "J1J2 MPO_2x2" begin
     W = 3
     model = Heisenberg(0.5,W,1.0,-1.0,-1.0)
     M = MPO_2x2(model)
@@ -15,4 +15,11 @@ using Test
         M2 = MPO_2x2(model2)
         @test M1 == M2
     end
+end
+
+@testset "J1J2 MPO_2x2" begin
+    W = 3
+    model = M2(0.5,W,(pi,pi))
+    M = MPO_2x2(model)
+    @test size(M) == (2+3W,16,2+3W,16)
 end
