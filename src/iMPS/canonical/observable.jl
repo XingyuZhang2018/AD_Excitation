@@ -630,9 +630,16 @@ function mag2(model, k, L;
     E, Ǝ = envir_MPO(AL, AR, M)
     AC = ALCtoAC(AL,C)
 
-    田 = ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,AC,M,Ǝ,conj(AC))
-    日 = ein"((abij,acdij),bceij),deij->"(C,E,Ǝ,conj(C))
-    mag2_tol = real(Array(田-日)[]/L)
+    田 = 0.0
+    if sizeof(E)*D2 / 2^30 < 10 # if the largest tensor size < 10GB
+        田 = Array(ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,AC,M,Ǝ,conj(AC)))[]
+    else
+        for b in 1:D2, g in 1:D2
+            田 += Array(ein"(((adfij,acij),deij),cehij),fhij -> "(E,AC[:,b,:,:,:],M[:,g,:,b,:,:],Ǝ,conj(AC[:,g,:,:,:])))[]
+        end
+    end
+    日 = Array(ein"((abij,acdij),bceij),deij->"(C,E,Ǝ,conj(C)))[]
+    mag2_tol = real(田-日)/L
     if4site && (mag2_tol /= 16)
     outfolder = joinpath(groundstate_folder,"1x$(Nj)_D$(D2)_χ$χ")
     !isdir(outfolder) && mkpath(outfolder)
