@@ -877,3 +877,44 @@ SS24: $SS24
     println("save dimer_order to $logfile")
     println(message)
 end
+
+function dJ2(model;
+             Nj = 1, χ, 
+             infolder = Defaults.infolder,
+             atype = Defaults.atype,
+             ifmerge = false, 
+             if4site = true
+             )
+
+    Mo = if4site ? atype(MPO_2x2(model)) : atype(MPO(model))
+    D2 = size(Mo, 2)
+
+    groundstate_folder = joinpath(infolder, "$model", "groundstate")
+    AL, C, AR = init_canonical_mps(;infolder = groundstate_folder, 
+                                    atype = atype,  
+                                    Nj = Nj,      
+                                    D = D2, 
+                                    χ = χ)
+
+    if ifmerge
+        AL = reshape(ein"abc,cde->abde"(AL[:,:,:,1,1], AL[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        AR = reshape(ein"abc,cde->abde"(AR[:,:,:,1,1], AR[:,:,:,1,2]), (χ, D2^2, χ, 1, 1))
+        C = reshape(C[:,:,1,2], (χ, χ, 1, 1))
+    end
+                  
+    Mo = if4site ? atype(MPO_2x2(J1J2(model.S, model.W, 0.0, 1.0))) : atype(MPO(J1J2(model.S, model.W, 0.0, 1.0)))
+    M = atype(zeros(ComplexF64, (size(Mo)...,1,Nj)))
+    for j in 1:Nj
+        M[:,:,:,:,1,j] = Mo
+    end
+
+    E, Ǝ = envir_MPO(AL, AR, M)
+    AC = ALCtoAC(AL,C)
+
+    田 = 0.0
+    for b in 1:D2, g in 1:D2
+        田 += Array(ein"(((adfij,acij),deij),cehij),fhij -> "(E,AC[:,b,:,:,:],M[:,g,:,b,:,:],Ǝ,conj(AC[:,g,:,:,:])))[]
+    end
+    日 = Array(ein"((abij,acdij),bceij),deij->"(C,E,Ǝ,conj(C)))[]
+    return real(田-日)
+end
