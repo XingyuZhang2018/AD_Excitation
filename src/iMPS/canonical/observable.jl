@@ -631,7 +631,7 @@ function mag2(model, k, L;
     AC = ALCtoAC(AL,C)
 
     田 = 0.0
-    if sizeof(E)*D2 / 2^30 < 10 # if the largest tensor size < 10GB
+    if sizeof(E)*D2 < (CUDA.total_memory()-CUDA.cached_memory()) # if the largest tensor size < free memory
         田 = Array(ein"(((adfij,abcij),dgebij),cehij),fghij -> "(E,AC,M,Ǝ,conj(AC)))[]
     else
         for b in 1:D2, g in 1:D2
