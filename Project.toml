@@ -22,6 +22,7 @@ TeneT = "260a78e0-cbf2-49ba-8157-48058c700f32"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
+ArgParse = "1"
 CUDA = "3"
 ChainRulesCore = "1"
 FileIO = "1"
